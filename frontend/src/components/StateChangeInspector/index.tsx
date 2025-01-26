@@ -35,13 +35,16 @@ export const StateChangeInspector: React.FC = () => {
       setStateChanges(prev => {
         const change: StateChange = {
           entityId,
-          oldState: oldState || { state: 'unknown', attributes: {}, last_updated: new Date().toISOString() },
+          oldState: oldState || { state: 'unknown', attributes: {}, last_updated: newState.last_updated },
           newState,
-          timestamp: new Date().toISOString(),
+          timestamp: newState.last_updated,
           id: `${entityId}-${Date.now()}`
         };
 
-        const updated = [change, ...prev].slice(0, 100);
+        // Sort by last_updated in descending order
+        const updated = [...prev, change]
+          .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+          .slice(0, 50);
         return updated;
       });
     });

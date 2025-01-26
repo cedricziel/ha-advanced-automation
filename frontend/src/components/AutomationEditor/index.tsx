@@ -86,13 +86,7 @@ export const AutomationEditor: React.FC = () => {
     };
   }, [id, loadAutomation]);
 
-  // Track if we're loading initial state
-  const [isLoadingState, setIsLoadingState] = useState(true);
-
   const handleWorkspaceChange = useCallback((data: WorkspaceChangeData) => {
-    // Don't update state while loading initial state
-    if (isLoadingState) return;
-
     setEditorState(prevState => {
       // Only update if the data has actually changed
       if (JSON.stringify(prevState) === JSON.stringify(data)) {
@@ -104,19 +98,7 @@ export const AutomationEditor: React.FC = () => {
         conditions: data.conditions
       };
     });
-  }, [isLoadingState]);
-
-  // Effect to handle initial state loading
-  useEffect(() => {
-    if (id && isLoadingState && editorState.workspace) {
-      setIsLoadingState(false);
-    }
-  }, [id, editorState.workspace, isLoadingState]);
-
-  // Reset loading state when switching automations
-  useEffect(() => {
-    setIsLoadingState(true);
-  }, [id]);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -187,7 +169,7 @@ export const AutomationEditor: React.FC = () => {
             <BlocklyWorkspace
               onWorkspaceChange={handleWorkspaceChange}
               initialState={editorState.workspace}
-              key={`${id || 'new'}-${isLoadingState}`} // Force new instance when switching automations or loading state
+              key={id || 'new'} // Force new instance when switching automations
             />
           </div>
 

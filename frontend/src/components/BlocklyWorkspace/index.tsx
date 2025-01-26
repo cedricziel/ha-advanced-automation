@@ -113,22 +113,10 @@ interface BlocklyWorkspaceProps {
   initialState?: any;
 }
 
-// Debounce function outside component to prevent recreation
-const debounce = <T extends (...args: any[]) => any>(
-  func: T,
-  wait: number
-): ((...args: Parameters<T>) => void) => {
-  let timeout: NodeJS.Timeout;
-  return (...args: Parameters<T>) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
-  };
-};
-
 const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = memo(({ onWorkspaceChange, initialState }) => {
   const workspaceRef = useRef<Blockly.Workspace | null>(null);
   const extractorRef = useRef<BlockExtractor | null>(null);
-  const isInitializedRef = useRef(false);
+  const hasLoadedStateRef = useRef(false);
   const isUnmountedRef = useRef(false);
   const [toolboxConfig, setToolboxConfig] = useState<BlocklyToolbox | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -169,66 +157,40 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = memo(({ onWorkspaceCha
     };
   }, []);
 
-  // Memoized workspace change handler
+  // Handle workspace changes
   const handleWorkspaceChange = useCallback((workspace: Blockly.Workspace) => {
-    if (!workspace || isUnmountedRef.current) return;
-    workspaceRef.current = workspace;
+    if (!workspace || isUnmountedRef.current || !extractorRef.current) return;
 
-    // Debounce the state update
-    const debouncedUpdate = debounce(() => {
-      if (extractorRef.current && workspace && !isUnmountedRef.current) {
-        try {
-          const state = Blockly.serialization.workspaces.save(workspace);
-          const triggers = extractorRef.current.extractTriggers(workspace);
-          const conditions = extractorRef.current.extractConditions(workspace);
+    // Don't trigger changes while loading initial state
+    if (!hasLoadedStateRef.current && initialState) return;
 
-          onWorkspaceChange?.({
-            workspace: state,
-            triggers,
-            conditions
-          });
-        } catch (error) {
-          console.error('Error generating automation:', error);
-        }
-      }
-    }, 300);
+    try {
+      const state = Blockly.serialization.workspaces.save(workspace);
+      const triggers = extractorRef.current.extractTriggers(workspace);
+      const conditions = extractorRef.current.extractConditions(workspace);
 
-    debouncedUpdate();
-  }, [onWorkspaceChange, isUnmountedRef]);
+      onWorkspaceChange?.({
+        workspace: state,
+        triggers,
+        conditions
+      });
+    } catch (error) {
+      console.error('Error generating automation:', error);
+    }
+  }, [onWorkspaceChange, initialState, hasLoadedStateRef]);
 
   // Handle workspace initialization
   const onInject = useCallback((workspace: Blockly.Workspace) => {
     workspaceRef.current = workspace;
 
-    // Clear workspace first to prevent state mixing
-    workspace.clear();
-
-    // Load initial state if available and toolbox is ready
+    // Only attempt to load state if we have both initialState and toolbox
     if (initialState && toolboxConfig) {
-      // Small delay to ensure workspace is fully initialized
-      setTimeout(() => {
-        if (!isUnmountedRef.current && workspace) {
-          try {
-            Blockly.serialization.workspaces.load(initialState, workspace);
-          } catch (error) {
-            console.error('Error loading initial workspace state:', error);
-          }
-        }
-      }, 100);
-    }
-  }, [initialState, toolboxConfig]);
-
-  // Reset workspace when initialState changes
-  useEffect(() => {
-    const workspace = workspaceRef.current;
-    if (workspace) {
-      workspace.clear();
-      if (initialState && toolboxConfig) {
-        try {
-          Blockly.serialization.workspaces.load(initialState, workspace);
-        } catch (error) {
-          console.error('Error loading initial workspace state:', error);
-        }
+      try {
+        workspace.clear();
+        Blockly.serialization.workspaces.load(initialState, workspace);
+        hasLoadedStateRef.current = true;
+      } catch (error) {
+        console.error('Error loading initial workspace state:', error);
       }
     }
   }, [initialState, toolboxConfig]);
@@ -238,7 +200,7 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = memo(({ onWorkspaceCha
     return () => {
       isUnmountedRef.current = true;
       workspaceRef.current = null;
-      isInitializedRef.current = false;
+      hasLoadedStateRef.current = false;
     };
   }, []);
 
@@ -268,6 +230,13 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = memo(({ onWorkspaceCha
             length: 3,
             colour: '#ccc',
             snap: true
+          },
+          readOnly: false,
+          trashcan: true,
+          move: {
+            scrollbars: true,
+            drag: true,
+            wheel: true
           }
         }}
         onWorkspaceChange={handleWorkspaceChange}
