@@ -84,7 +84,8 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: binary-${{ matrix.arch }}
-        path: target/${{ matrix.target }}/release/ha-advanced-automation
+        path: backend/target/${{ matrix.target }}/release/ha-advanced-automation
+
 
   prepare-docker:
     needs: [backend-build]
