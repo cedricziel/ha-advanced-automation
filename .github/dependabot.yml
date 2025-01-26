@@ -1,0 +1,24 @@
+---
+version: 2
+updates:
+  # Frontend npm dependencies
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    assignees:
+      - cedricziel
+    reviewers:
+      - cedricziel
+
+  # Backend Cargo dependencies
+  - package-ecosystem: "cargo"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    assignees:
+      - cedricziel
+    reviewers:
+      - cedricziel
