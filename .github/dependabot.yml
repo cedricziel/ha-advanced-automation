@@ -1,6 +1,16 @@
 ---
 version: 2
 updates:
+  # docker images
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 30
+    assignees:
+      - cedricziel
+    reviewers:
+      - cedricziel
   # Frontend npm dependencies
   - package-ecosystem: "npm"
     directory: "/frontend"
