@@ -10,11 +10,31 @@
   padding: 20px;
   color: white;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .App-header h1 {
   margin: 0;
   font-size: 1.8em;
+}
+
+.connection-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9em;
+  padding: 6px 12px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
 }
 
 main {
@@ -43,6 +63,24 @@ pre {
 .blockly-workspace {
   height: 100%;
   width: 100%;
+}
+
+/* Entity dropdown styles */
+.blockly-entity-dropdown {
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.blockly-entity-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.blockly-entity-item:hover {
+  background-color: #f0f0f0;
 }
 
 /* Custom scrollbar styles */

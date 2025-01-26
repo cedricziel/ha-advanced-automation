@@ -2,6 +2,8 @@ import React, { useRef, useEffect, useState } from 'react';
 import { BlocklyWorkspace as ReactBlocklyWorkspace } from 'react-blockly';
 import * as Blockly from 'blockly';
 import { initBlockGenerators } from './generators';
+import { registerEntityField } from './EntityField';
+import { haClient } from '../../services/haClient';
 
 // Initial toolbox configuration with basic Home Assistant blocks
 const INITIAL_TOOLBOX_JSON = {
@@ -55,12 +57,17 @@ const INITIAL_TOOLBOX_JSON = {
   ]
 };
 
+function createEntityField(defaultValue: string) {
+  const EntityFieldClass = Blockly.registry.getClass('field', 'field_entity');
+  return EntityFieldClass ? new EntityFieldClass(defaultValue) : new Blockly.FieldTextInput(defaultValue);
+}
+
 // Define custom blocks
 Blockly.Blocks['ha_state_trigger'] = {
   init: function() {
     this.appendDummyInput()
         .appendField("When entity")
-        .appendField(new Blockly.FieldTextInput("entity.id"), "ENTITY_ID")
+        .appendField(createEntityField("entity.id"), "ENTITY_ID")
         .appendField("changes to")
         .appendField(new Blockly.FieldTextInput("state"), "STATE");
     this.setColour(230);
@@ -84,7 +91,7 @@ Blockly.Blocks['ha_state_condition'] = {
   init: function() {
     this.appendDummyInput()
         .appendField("Entity")
-        .appendField(new Blockly.FieldTextInput("entity.id"), "ENTITY_ID")
+        .appendField(createEntityField("entity.id"), "ENTITY_ID")
         .appendField("is")
         .appendField(new Blockly.FieldTextInput("state"), "STATE");
     this.setOutput(true, "Boolean");
@@ -115,7 +122,7 @@ Blockly.Blocks['ha_call_service'] = {
         .appendField(new Blockly.FieldTextInput("domain.service"), "SERVICE");
     this.appendDummyInput()
         .appendField("with entity")
-        .appendField(new Blockly.FieldTextInput("entity.id"), "ENTITY_ID");
+        .appendField(createEntityField("entity.id"), "ENTITY_ID");
     this.setPreviousStatement(true, null);
     this.setNextStatement(true, null);
     this.setColour(60);
@@ -128,7 +135,7 @@ Blockly.Blocks['ha_set_state'] = {
   init: function() {
     this.appendDummyInput()
         .appendField("Set")
-        .appendField(new Blockly.FieldTextInput("entity.id"), "ENTITY_ID")
+        .appendField(createEntityField("entity.id"), "ENTITY_ID")
         .appendField("to")
         .appendField(new Blockly.FieldTextInput("state"), "STATE");
     this.setPreviousStatement(true, null);
@@ -149,8 +156,22 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onWorkspaceChange }
   const [automationYaml, setAutomationYaml] = useState<string>('');
 
   useEffect(() => {
-    // Initialize block generators
+    // Initialize block generators and custom fields
     generatorRef.current = initBlockGenerators();
+    registerEntityField();
+
+    // Connect to Home Assistant
+    haClient.connect();
+
+    // Subscribe to state changes
+    const unsubscribe = haClient.onStateChanged((entityId, state) => {
+      console.log('Entity state changed:', entityId, state);
+      // You can update the workspace or UI based on state changes
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   const handleWorkspaceChange = (workspace: Blockly.Workspace) => {

@@ -25,7 +25,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 COPY --from=builder /app/backend/target/release/ha-advanced-automation ./
-COPY --from=frontend-builder /app/frontend/build ./frontend/build
+COPY --from=frontend-builder /app/frontend/build ./static
 
 ENV PORT=3001
 EXPOSE 3001
