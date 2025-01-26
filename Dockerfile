@@ -7,7 +7,7 @@ COPY backend/src ./backend/src
 WORKDIR /app/backend
 RUN cargo build --release
 
-FROM node:20-slim as frontend-builder
+FROM node:23-slim as frontend-builder
 
 WORKDIR /app
 COPY frontend/package*.json ./frontend/
