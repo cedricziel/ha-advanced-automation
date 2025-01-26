@@ -64,9 +64,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/health", get(health_check))
         .route("/ws", get(ws_handler))
         .route("/api/states", get(get_states))
-        .nest_service("/", ServeDir::new("static"))
         .with_state(state)
-        .layer(cors);
+        .layer(cors)
+        .fallback_service(ServeDir::new("static"));
 
     // Get port from environment or use default
     let port = std::env::var("PORT")

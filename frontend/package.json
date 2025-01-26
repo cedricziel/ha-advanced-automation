@@ -13,7 +13,8 @@
     "start": "react-scripts start",
     "build": "react-scripts build && rm -rf ../backend/static/* && cp -r build/* ../backend/static/",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "watch": "react-scripts build --watch & nodemon --watch build --exec \"rm -rf ../backend/static/* && cp -r build/* ../backend/static/\""
   },
   "eslintConfig": {
     "extends": [
@@ -46,6 +47,7 @@
     "@types/node": "^22.10.10",
     "@types/react": "^18.2.48",
     "@types/react-dom": "^18.2.18",
+    "nodemon": "^3.1.9",
     "react-scripts": "^5.0.1",
     "typescript": "^4.9.5"
   }
