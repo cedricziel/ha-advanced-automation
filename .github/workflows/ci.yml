@@ -38,8 +38,18 @@ jobs:
         name: frontend-build
         path: frontend/build/
 
-  backend:
+  backend-build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [amd64, armv7, arm64]
+        include:
+          - arch: amd64
+            target: x86_64-unknown-linux-gnu
+          - arch: armv7
+            target: armv7-unknown-linux-gnueabihf
+          - arch: arm64
+            target: aarch64-unknown-linux-gnu
     defaults:
       run:
         working-directory: backend
@@ -52,7 +62,7 @@ jobs:
       with:
         profile: minimal
         toolchain: stable
-        targets: x86_64-unknown-linux-gnu,armv7-unknown-linux-gnueabihf,aarch64-unknown-linux-gnu
+        targets: ${{ matrix.target }}
 
     - name: Cache Rust dependencies
       uses: actions/cache@v4
@@ -62,32 +72,51 @@ jobs:
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
           backend/target/
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        key: ${{ runner.os }}-cargo-${{ matrix.arch }}-${{ hashFiles('**/Cargo.lock') }}
 
-    - name: Build amd64
-      run: cargo build --release --target x86_64-unknown-linux-gnu
+    - name: Build ${{ matrix.arch }}
+      run: cargo build --release --target ${{ matrix.target }}
 
-    - name: Build armv7
-      run: cargo build --release --target armv7-unknown-linux-gnueabihf
-
-    - name: Build arm64
-      run: cargo build --release --target aarch64-unknown-linux-gnu
-
-    - name: Prepare binaries for Docker
-      run: |
-        mkdir -p backend/target/amd64 backend/target/arm/v7 backend/target/arm64
-        cp target/x86_64-unknown-linux-gnu/release/ha-advanced-automation backend/target/amd64/
-        cp target/armv7-unknown-linux-gnueabihf/release/ha-advanced-automation backend/target/arm/v7/
-        cp target/aarch64-unknown-linux-gnu/release/ha-advanced-automation backend/target/arm64/
-
-    - name: Upload binaries
+    - name: Upload binary
       uses: actions/upload-artifact@v4
       with:
-        name: backend-binaries
-        path: backend/target/
+        name: binary-${{ matrix.arch }}
+        path: target/${{ matrix.target }}/release/ha-advanced-automation
+
+  prepare-docker:
+    needs: [backend-build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create directory structure
+        run: |
+          mkdir -p backend/target/amd64 backend/target/arm/v7 backend/target/arm64
+
+      - name: Download amd64 binary
+        uses: actions/download-artifact@v4
+        with:
+          name: binary-amd64
+          path: backend/target/amd64
+
+      - name: Download armv7 binary
+        uses: actions/download-artifact@v4
+        with:
+          name: binary-armv7
+          path: backend/target/arm/v7
+
+      - name: Download arm64 binary
+        uses: actions/download-artifact@v4
+        with:
+          name: binary-arm64
+          path: backend/target/arm64
+
+      - name: Upload prepared artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-binaries
+          path: backend/target/
 
   docker:
-    needs: [frontend, backend]
+    needs: [frontend, prepare-docker]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
 
