@@ -1,0 +1,46 @@
+.blockly-workspace {
+  height: 100%;
+  width: 100%;
+  position: relative;
+}
+
+/* Ensure the Blockly workspace fills its container */
+.blockly-workspace .blocklyWorkspace {
+  height: 100% !important;
+}
+
+/* Ensure the main Blockly div fills its container */
+.blockly-workspace > div {
+  height: 100%;
+}
+
+/* Fix z-index stacking for Blockly elements */
+.blocklyFlyout {
+  z-index: 10 !important;
+}
+
+.blocklyToolboxDiv {
+  z-index: 11 !important;
+}
+
+.blocklyWidgetDiv {
+  z-index: 12 !important;
+}
+
+.blocklyDropDownDiv {
+  z-index: 13 !important;
+}
+
+/* Ensure blocks being dragged stay on top */
+.blocklyDragging {
+  z-index: 100 !important;
+}
+
+/* Prevent container from interfering with drag events */
+.blockly-workspace > div:first-child {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}

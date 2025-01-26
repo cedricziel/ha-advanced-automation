@@ -1,26 +1,114 @@
 import React, { useState, useEffect } from 'react';
-import './App.css';
-import BlocklyWorkspace from './components/BlocklyWorkspace';
-import * as Blockly from 'blockly';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
+import { AutomationsList } from './components/AutomationsList';
+import { AutomationEditor } from './components/AutomationEditor';
 import { haClient } from './services/haClient';
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  Box,
+  Container,
+  CircularProgress,
+  Alert,
+  Button,
+} from '@mui/material';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+
+// Create a theme instance matching Home Assistant's style
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: '#03a9f4', // Home Assistant blue
+    },
+    secondary: {
+      main: '#4caf50', // Success green
+    },
+    error: {
+      main: '#f44336', // Error red
+    },
+    background: {
+      default: '#f5f5f5',
+    },
+  },
+  components: {
+    MuiAppBar: {
+      styleOverrides: {
+        root: {
+          backgroundColor: '#ffffff',
+          color: '#000000',
+        },
+      },
+    },
+  },
+});
+
+interface AppContentProps {
+  connectionStatus: 'connecting' | 'connected' | 'error';
+}
+
+const AppContent: React.FC<AppContentProps> = ({ connectionStatus }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const pathname = location.pathname;
+  const showBackButton = location.pathname.includes('/automations/') && location.pathname !== '/automations';
+
+  return (
+    <>
+      <Box sx={{ flexGrow: 1 }}>
+        <AppBar position="static" elevation={1}>
+          <Toolbar>
+            {showBackButton && (
+              <Button
+                color="inherit"
+                startIcon={<ArrowBackIcon />}
+                onClick={() => navigate('/automations')}
+                sx={{ mr: 2 }}
+              >
+                Back to Automations
+              </Button>
+            )}
+            <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+              Home Assistant Advanced Automation
+            </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box
+                  sx={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: '50%',
+                    backgroundColor: connectionStatus === 'connected' ? '#4caf50' : '#f44336',
+                  }}
+                />
+                <Typography variant="body2">
+                  {connectionStatus === 'connected' ? 'Connected' : 'Connection Error'}
+                </Typography>
+              </Box>
+            </Toolbar>
+          </AppBar>
+
+          <Container maxWidth="xl" sx={{ mt: 4 }}>
+            <Routes key={pathname}>
+              <Route path="/" element={<Navigate to="/automations" replace />} />
+              <Route path="/automations" element={<AutomationsList />} />
+              <Route path="/automations/new" element={<AutomationEditor />} />
+              <Route path="/automations/:id/edit" element={<AutomationEditor />} />
+            </Routes>
+          </Container>
+        </Box>
+    </>
+  );
+};
 
 function App() {
-  const [workspaceState, setWorkspaceState] = useState<any>(null);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'error'>('connecting');
-  const [entities, setEntities] = useState<Record<string, any>>({});
 
   useEffect(() => {
     const initializeHaClient = async () => {
       try {
-        await haClient.getAllStates()
-          .then(states => {
-            setEntities(states);
-            setConnectionStatus('connected');
-          })
-          .catch(error => {
-            console.error('Failed to fetch states:', error);
-            setConnectionStatus('error');
-          });
+        await haClient.getAllStates();
+        setConnectionStatus('connected');
       } catch (error) {
         console.error('Failed to initialize HA client:', error);
         setConnectionStatus('error');
@@ -30,76 +118,37 @@ function App() {
     initializeHaClient();
   }, []);
 
-  const handleWorkspaceChange = (workspace: Blockly.Workspace) => {
-    const state = Blockly.serialization.workspaces.save(workspace);
-    setWorkspaceState(state);
-  };
-
   if (connectionStatus === 'connecting') {
     return (
-      <div className="App">
-        <header className="App-header">
-          <h1>Home Assistant Advanced Automation</h1>
-        </header>
-        <main style={{ padding: '20px', textAlign: 'center' }}>
-          <p>Connecting to Home Assistant...</p>
-        </main>
-      </div>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+          <CircularProgress />
+        </Box>
+      </ThemeProvider>
     );
   }
 
   if (connectionStatus === 'error') {
     return (
-      <div className="App">
-        <header className="App-header">
-          <h1>Home Assistant Advanced Automation</h1>
-        </header>
-        <main style={{ padding: '20px', textAlign: 'center' }}>
-          <p style={{ color: 'red' }}>Failed to connect to Home Assistant. Please check your configuration and try again.</p>
-        </main>
-      </div>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <Box sx={{ p: 3 }}>
+          <Alert severity="error">
+            Failed to connect to Home Assistant. Please check your configuration and try again.
+          </Alert>
+        </Box>
+      </ThemeProvider>
     );
   }
 
   return (
-    <div className="App">
-      <header className="App-header">
-        <h1>Home Assistant Advanced Automation</h1>
-        <div className="connection-status">
-          <span className="status-dot" style={{
-            backgroundColor: connectionStatus === 'connected' ? '#4caf50' : '#f44336'
-          }}></span>
-          {connectionStatus === 'connected' ? 'Connected' : 'Connection Error'}
-        </div>
-      </header>
-      <main style={{ padding: '20px' }}>
-        <div style={{ display: 'flex', gap: '20px', height: 'calc(100vh - 200px)' }}>
-          <div style={{ flex: 2 }}>
-            <BlocklyWorkspace onWorkspaceChange={handleWorkspaceChange} />
-          </div>
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div style={{ flex: 1, backgroundColor: '#f5f5f5', padding: '20px', overflowY: 'auto', borderRadius: '8px' }}>
-              <h3>Workspace State</h3>
-              <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                {workspaceState ? JSON.stringify(workspaceState, null, 2) : 'No blocks yet'}
-              </pre>
-            </div>
-            <div style={{ flex: 1, backgroundColor: '#f5f5f5', padding: '20px', overflowY: 'auto', borderRadius: '8px' }}>
-              <h3>Available Entities</h3>
-              <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                {Object.keys(entities).length > 0 ?
-                  Object.keys(entities).map(entityId => (
-                    <div key={entityId} style={{ marginBottom: '8px' }}>
-                      <strong>{entityId}</strong>: {entities[entityId].state}
-                    </div>
-                  ))
-                  : 'No entities available'}
-              </pre>
-            </div>
-          </div>
-        </div>
-      </main>
-    </div>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <BrowserRouter>
+        <AppContent connectionStatus={connectionStatus} />
+      </BrowserRouter>
+    </ThemeProvider>
   );
 }
 

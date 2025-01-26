@@ -1,61 +1,12 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
+import './BlocklyWorkspace.css';
 import { BlocklyWorkspace as ReactBlocklyWorkspace } from 'react-blockly';
 import * as Blockly from 'blockly';
 import { initBlockGenerators } from './generators';
 import { registerEntityField } from './EntityField';
 import { haClient } from '../../services/haClient';
-
-// Initial toolbox configuration with basic Home Assistant blocks
-const INITIAL_TOOLBOX_JSON = {
-  kind: "categoryToolbox",
-  contents: [
-    {
-      kind: "category",
-      name: "Triggers",
-      colour: "#c30",
-      contents: [
-        {
-          kind: "block",
-          type: "ha_state_trigger"
-        },
-        {
-          kind: "block",
-          type: "ha_time_trigger"
-        }
-      ]
-    },
-    {
-      kind: "category",
-      name: "Conditions",
-      colour: "#2c5",
-      contents: [
-        {
-          kind: "block",
-          type: "ha_state_condition"
-        },
-        {
-          kind: "block",
-          type: "ha_time_condition"
-        }
-      ]
-    },
-    {
-      kind: "category",
-      name: "Actions",
-      colour: "#29b",
-      contents: [
-        {
-          kind: "block",
-          type: "ha_call_service"
-        },
-        {
-          kind: "block",
-          type: "ha_set_state"
-        }
-      ]
-    }
-  ]
-};
+import { blocklyService } from '../../services/blocklyService';
+import { BlocklyToolbox } from '../../types/blockly';
 
 function createEntityField(defaultValue: string) {
   const EntityFieldClass = Blockly.registry.getClass('field', 'field_entity');
@@ -148,49 +99,136 @@ Blockly.Blocks['ha_set_state'] = {
 
 interface BlocklyWorkspaceProps {
   onWorkspaceChange?: (workspace: Blockly.Workspace) => void;
+  initialState?: any;
 }
 
-const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onWorkspaceChange }) => {
+const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onWorkspaceChange, initialState }) => {
   const workspaceRef = useRef<Blockly.Workspace | null>(null);
   const generatorRef = useRef<((workspace: Blockly.Workspace) => any) | null>(null);
   const [automationYaml, setAutomationYaml] = useState<string>('');
+  const [toolboxConfig, setToolboxConfig] = useState<BlocklyToolbox | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
+  // Fetch toolbox configuration
   useEffect(() => {
-    // Initialize block generators and custom fields
+    const fetchToolboxConfig = async () => {
+      try {
+        const config = await blocklyService.getToolboxConfig();
+        setToolboxConfig(config);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching toolbox config:', err);
+        setError('Failed to load toolbox configuration');
+      }
+    };
+    fetchToolboxConfig();
+  }, []);
+
+  // Initialize block generators and custom fields
+  useEffect(() => {
     generatorRef.current = initBlockGenerators();
     registerEntityField();
+  }, []);
 
-    // Connect to Home Assistant
+  // Connect to Home Assistant
+  useEffect(() => {
     haClient.connect();
-
-    // Subscribe to state changes
     const unsubscribe = haClient.onStateChanged((entityId, state) => {
       console.log('Entity state changed:', entityId, state);
-      // You can update the workspace or UI based on state changes
     });
+    return () => unsubscribe();
+  }, []);
+
+  // Handle workspace initialization and cleanup
+  useEffect(() => {
+    let mounted = true;
 
     return () => {
-      unsubscribe();
+      mounted = false;
+      setAutomationYaml('');
+      // Let react-blockly handle workspace disposal
+      workspaceRef.current = null;
     };
   }, []);
 
-  const handleWorkspaceChange = (workspace: Blockly.Workspace) => {
-    workspaceRef.current = workspace;
-
-    if (generatorRef.current) {
-      const automation = generatorRef.current(workspace);
-      if (automation) {
-        setAutomationYaml(JSON.stringify(automation, null, 2));
+  // Load initial state when workspace and state are available
+  useEffect(() => {
+    if (initialState && workspaceRef.current) {
+      try {
+        Blockly.serialization.workspaces.load(initialState, workspaceRef.current);
+      } catch (error) {
+        console.error('Error loading initial workspace state:', error);
       }
-      onWorkspaceChange?.(workspace);
     }
-  };
+  }, [initialState, workspaceRef.current]);
+
+  // Debounced workspace change handler
+  const debouncedHandleChange = useCallback(
+    (() => {
+      let timeoutId: NodeJS.Timeout;
+      return (workspace: Blockly.Workspace) => {
+        workspaceRef.current = workspace;
+
+        // Clear previous timeout
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+
+        // Set new timeout
+        timeoutId = setTimeout(() => {
+          // Only update if we have a generator and the workspace exists
+          if (generatorRef.current && workspace) {
+            try {
+              const automation = generatorRef.current(workspace);
+              if (automation) {
+                try {
+                  setAutomationYaml(JSON.stringify(automation, null, 2));
+                } catch (error) {
+                  console.error('Error stringifying automation:', error);
+                  setAutomationYaml('');
+                }
+              } else {
+                setAutomationYaml('');
+              }
+              // Notify parent of changes
+              onWorkspaceChange?.(workspace);
+            } catch (error) {
+              console.error('Error generating automation:', error);
+            }
+          }
+        }, 300); // 300ms debounce
+      };
+    })(),
+    [onWorkspaceChange]
+  );
+
+  const handleWorkspaceChange = useCallback((workspace: Blockly.Workspace) => {
+    if (!workspace) return;
+    workspaceRef.current = workspace;
+    debouncedHandleChange(workspace);
+  }, [debouncedHandleChange]);
+
+  if (error) {
+    return (
+      <div style={{ padding: '20px', color: 'red' }}>
+        {error}
+      </div>
+    );
+  }
+
+  if (!toolboxConfig) {
+    return (
+      <div style={{ padding: '20px' }}>
+        Loading workspace...
+      </div>
+    );
+  }
 
   return (
-    <div style={{ display: 'flex', gap: '20px', height: '600px' }}>
-      <div style={{ flex: 1 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', height: '100%' }}>
+      <div style={{ flex: 2, minHeight: 0 }}>
         <ReactBlocklyWorkspace
-          toolboxConfiguration={INITIAL_TOOLBOX_JSON}
+          toolboxConfiguration={toolboxConfig}
           workspaceConfiguration={{
             grid: {
               spacing: 20,
@@ -203,7 +241,7 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onWorkspaceChange }
           className="blockly-workspace"
         />
       </div>
-      <div style={{ flex: 1, padding: '20px', backgroundColor: '#f5f5f5', overflowY: 'auto' }}>
+      <div style={{ flex: 1, minHeight: 0, padding: '20px', backgroundColor: '#f5f5f5', overflowY: 'auto' }}>
         <h3>Generated Automation</h3>
         <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
           {automationYaml}

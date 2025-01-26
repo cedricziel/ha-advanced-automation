@@ -1,26 +1,29 @@
 mod ha_client;
+mod automation;
+mod blockly;
 mod tests;
 
 use dotenv::dotenv;
+use std::sync::Arc;
 use axum::{
     extract::ws::{WebSocket, WebSocketUpgrade},
     response::Response,
-    routing::get,
+    routing::{get, post, put, delete},
     Router,
     Json,
 };
 use ha_client::HaClient;
 use serde_json::json;
-use std::sync::Arc;
 use tower_http::{
     cors::{CorsLayer, Any},
-    services::ServeDir,
+    services::{ServeDir, ServeFile},
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use futures::{SinkExt, StreamExt};
 
 struct AppState {
     ha_client: Arc<HaClient>,
+    automation_store: Arc<automation::AutomationStore>,
 }
 
 #[tokio::main]
@@ -51,6 +54,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create app state
     let state = Arc::new(AppState {
         ha_client: ha_client.clone(),
+        automation_store: Arc::new(automation::AutomationStore::new()),
     });
 
     // Create CORS layer
@@ -64,9 +68,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/health", get(health_check))
         .route("/ws", get(ws_handler))
         .route("/api/states", get(get_states))
+        .route("/api/automations", get(list_automations).post(create_automation))
+        .route("/api/automations/{id}", get(get_automation))
+        .route("/api/automations/{id}", put(update_automation))
+        .route("/api/automations/{id}", delete(delete_automation))
+        .route("/api/automations/{id}/toggle", post(toggle_automation))
+        .route("/api/blockly/toolbox", get(get_blockly_toolbox))
         .with_state(state)
         .layer(cors)
-        .fallback_service(ServeDir::new("static"));
+        .fallback_service(ServeDir::new("static").fallback(
+            ServeFile::new("static/index.html")
+        ));
 
     // Get port from environment or use default
     let port = std::env::var("PORT")
@@ -106,6 +118,84 @@ async fn ws_handler(
     ws: WebSocketUpgrade,
 ) -> Response {
     ws.on_upgrade(|socket| handle_socket(socket, state))
+}
+
+// Automation handlers
+async fn list_automations(
+    axum::extract::State(state): axum::extract::State<Arc<AppState>>,
+) -> Json<serde_json::Value> {
+    let automations = state.automation_store.list().await;
+    Json(json!({
+        "automations": automations
+    }))
+}
+
+async fn get_automation(
+    axum::extract::State(state): axum::extract::State<Arc<AppState>>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> Result<Json<automation::Automation>, (axum::http::StatusCode, String)> {
+    if let Some(automation) = state.automation_store.get(&id).await {
+        Ok(Json(automation))
+    } else {
+        Err((axum::http::StatusCode::NOT_FOUND, "Automation not found".to_string()))
+    }
+}
+
+async fn create_automation(
+    axum::extract::State(state): axum::extract::State<Arc<AppState>>,
+    Json(data): Json<automation::AutomationCreate>,
+) -> Json<automation::Automation> {
+    let automation = state.automation_store.create(data).await;
+    Json(automation)
+}
+
+async fn update_automation(
+    axum::extract::State(state): axum::extract::State<Arc<AppState>>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+    Json(data): Json<automation::AutomationUpdate>,
+) -> Result<Json<automation::Automation>, (axum::http::StatusCode, String)> {
+    if let Some(automation) = state.automation_store.update(&id, data).await {
+        Ok(Json(automation))
+    } else {
+        Err((axum::http::StatusCode::NOT_FOUND, "Automation not found".to_string()))
+    }
+}
+
+async fn delete_automation(
+    axum::extract::State(state): axum::extract::State<Arc<AppState>>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> Result<(), (axum::http::StatusCode, String)> {
+    if state.automation_store.delete(&id).await {
+        Ok(())
+    } else {
+        Err((axum::http::StatusCode::NOT_FOUND, "Automation not found".to_string()))
+    }
+}
+
+async fn toggle_automation(
+    axum::extract::State(state): axum::extract::State<Arc<AppState>>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+    Json(data): Json<serde_json::Value>,
+) -> Result<Json<automation::Automation>, (axum::http::StatusCode, String)> {
+    let enabled = data.get("enabled")
+        .and_then(|v| v.as_bool())
+        .ok_or((axum::http::StatusCode::BAD_REQUEST, "Missing or invalid 'enabled' field".to_string()))?;
+
+    if let Some(automation) = state.automation_store.toggle(&id, enabled).await {
+        Ok(Json(automation))
+    } else {
+        Err((axum::http::StatusCode::NOT_FOUND, "Automation not found".to_string()))
+    }
+}
+
+async fn get_blockly_toolbox() -> impl axum::response::IntoResponse {
+    let toolbox = blockly::get_default_toolbox();
+    let json = serde_json::to_string_pretty(&toolbox).unwrap();
+    (
+        axum::http::StatusCode::OK,
+        [(axum::http::header::CONTENT_TYPE, "application/json")],
+        json
+    )
 }
 
 async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {

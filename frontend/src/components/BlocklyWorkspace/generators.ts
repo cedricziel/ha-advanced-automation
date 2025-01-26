@@ -113,9 +113,28 @@ export const initBlockGenerators = () => {
   return (workspace: Blockly.Workspace) => {
     const code = javascriptGenerator.workspaceToCode(workspace);
     try {
+      // Handle empty workspace
+      if (!code.trim()) {
+        return {
+          alias: 'Blockly Generated Automation',
+          description: 'Automation generated using the visual editor',
+          trigger: [],
+          condition: [],
+          action: []
+        };
+      }
+
       const blocks = code.split('\n')
         .filter(Boolean)
-        .map((text: string) => JSON.parse(text) as AutomationBlock);
+        .map((text: string) => {
+          try {
+            return JSON.parse(text) as AutomationBlock;
+          } catch (error) {
+            console.error('Failed to parse block:', text, error);
+            return null;
+          }
+        })
+        .filter((block): block is AutomationBlock => block !== null);
 
       // Basic Home Assistant automation structure
       const automation = {
