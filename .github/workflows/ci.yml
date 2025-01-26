@@ -68,6 +68,8 @@ jobs:
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
     - name: Build all targets
+      env:
+        RUSTFLAGS: "--cfg cross"
       run: cross build --release
 
     - name: Prepare binaries for Docker
