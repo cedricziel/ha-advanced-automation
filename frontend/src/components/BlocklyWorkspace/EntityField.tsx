@@ -1,11 +1,5 @@
-import React, { useEffect, useState } from 'react';
 import * as Blockly from 'blockly';
 import { haClient } from '../../services/haClient';
-
-interface EntityFieldProps {
-    fieldName: string;
-    defaultValue?: string;
-}
 
 class EntityFieldWidget extends Blockly.FieldTextInput {
     private entities: { id: string; state: any }[] = [];
