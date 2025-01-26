@@ -74,8 +74,11 @@ jobs:
           backend/target/
         key: ${{ runner.os }}-cargo-${{ matrix.arch }}-${{ hashFiles('**/Cargo.lock') }}
 
+    - name: Install cross
+      run: cargo install cross
+
     - name: Build ${{ matrix.arch }}
-      run: cargo build --release --target ${{ matrix.target }}
+      run: cross build --release --target ${{ matrix.target }}
 
     - name: Upload binary
       uses: actions/upload-artifact@v4
