@@ -1,4 +1,5 @@
 mod ha_client;
+mod tests;
 
 use dotenv::dotenv;
 use axum::{
@@ -126,7 +127,7 @@ async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {
                 "entity_id": entity_id,
                 "state": state
             })) {
-                if sender.send(axum::extract::ws::Message::Text(msg)).await.is_err() {
+                if sender.send(axum::extract::ws::Message::Text(msg.into())).await.is_err() {
                     break;
                 }
             }

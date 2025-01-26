@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::sync::atomic::{AtomicI32, Ordering};
 use tokio::sync::{broadcast, RwLock};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -18,6 +19,16 @@ pub struct EntityState {
 pub struct HaClient {
     states: Arc<RwLock<HashMap<String, EntityState>>>,
     state_tx: broadcast::Sender<(String, EntityState)>,
+    message_id: Arc<AtomicI32>,
+}
+
+#[derive(Debug, Serialize)]
+struct HaMessage {
+    id: i32,
+    #[serde(rename = "type")]
+    msg_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    event_type: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -53,7 +64,12 @@ impl HaClient {
         Self {
             states: Arc::new(RwLock::new(HashMap::new())),
             state_tx,
+            message_id: Arc::new(AtomicI32::new(1)),
         }
+    }
+
+    fn next_id(&self) -> i32 {
+        self.message_id.fetch_add(1, Ordering::Relaxed)
     }
 
     pub async fn connect(&self, host: String, token: String) -> Result<(), Box<dyn Error>> {
@@ -61,20 +77,49 @@ impl HaClient {
         let (ws_stream, _) = connect_async(ws_url).await?;
         let (mut write, mut read) = ws_stream.split();
 
+        // Wait for auth_required message
+        if let Some(Ok(Message::Text(text))) = read.next().await {
+            let msg: serde_json::Value = serde_json::from_str(&text)?;
+            if msg["type"] != "auth_required" {
+                return Err("Expected auth_required message".into());
+            }
+        }
+
         // Send auth message
         let auth_msg = serde_json::to_string(&HaAuth {
             msg_type: "auth".to_string(),
             access_token: token,
         })?;
-        write.send(Message::Text(auth_msg)).await?;
+        write.send(Message::Text(auth_msg.into())).await?;
+
+        // Wait for auth_ok message
+        if let Some(Ok(Message::Text(text))) = read.next().await {
+            let msg: serde_json::Value = serde_json::from_str(&text)?;
+            if msg["type"] != "auth_ok" {
+                if msg["type"] == "auth_invalid" {
+                    return Err("Authentication failed".into());
+                }
+                return Err("Expected auth_ok message".into());
+            }
+        }
 
         // Subscribe to state changes
-        let sub_msg = r#"{"id": 1, "type": "subscribe_events", "event_type": "state_changed"}"#;
-        write.send(Message::Text(sub_msg.to_string())).await?;
+        let sub_id = self.next_id();
+        let sub_msg = serde_json::to_string(&HaMessage {
+            id: sub_id,
+            msg_type: "subscribe_events".to_string(),
+            event_type: Some("state_changed".to_string()),
+        })?;
+        write.send(Message::Text(sub_msg.into())).await?;
 
         // Get initial states
-        let get_states_msg = r#"{"id": 2, "type": "get_states"}"#;
-        write.send(Message::Text(get_states_msg.to_string())).await?;
+        let states_id = self.next_id();
+        let get_states_msg = serde_json::to_string(&HaMessage {
+            id: states_id,
+            msg_type: "get_states".to_string(),
+            event_type: None,
+        })?;
+        write.send(Message::Text(get_states_msg.into())).await?;
 
         let states = self.states.clone();
         let state_tx = self.state_tx.clone();
