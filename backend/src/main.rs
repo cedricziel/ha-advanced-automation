@@ -1,6 +1,7 @@
 mod ha_client;
 mod automation;
 mod blockly;
+mod blocks;
 mod tests;
 
 use dotenv::dotenv;
@@ -24,6 +25,7 @@ use futures::{SinkExt, StreamExt};
 struct AppState {
     ha_client: Arc<HaClient>,
     automation_store: Arc<automation::AutomationStore>,
+    block_store: Arc<blocks::BlockStore>,
 }
 
 #[tokio::main]
@@ -53,9 +55,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create app state
     let automation_store = automation::AutomationStore::new().await?;
+    // Initialize block store
+    let block_store = blocks::BlockStore::new().await?;
+    block_store.load_default_blocks().await?;
+
     let state = Arc::new(AppState {
         ha_client: ha_client.clone(),
         automation_store: Arc::new(automation_store),
+        block_store: Arc::new(block_store),
     });
 
     // Create CORS layer
@@ -75,6 +82,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/automations/{id}", delete(delete_automation))
         .route("/api/automations/{id}/toggle", post(toggle_automation))
         .route("/api/blockly/toolbox", get(get_blockly_toolbox))
+        .route("/api/blocks", get(list_blocks))
+        .route("/api/blocks", post(create_or_update_block))
+        .route("/api/blocks/{type}", delete(delete_block))
         .with_state(state)
         .layer(cors)
         .fallback_service(ServeDir::new("static").fallback(
@@ -191,14 +201,48 @@ async fn toggle_automation(
     }
 }
 
-async fn get_blockly_toolbox() -> impl axum::response::IntoResponse {
+async fn get_blockly_toolbox(
+    axum::extract::State(state): axum::extract::State<Arc<AppState>>,
+) -> impl axum::response::IntoResponse {
+    let blocks = state.block_store.list().await;
     let toolbox = blockly::get_default_toolbox();
-    let json = serde_json::to_string_pretty(&toolbox).unwrap();
+
+    let json = serde_json::to_string_pretty(&json!({
+        "toolbox": toolbox,
+        "blocks": blocks
+    })).unwrap();
+
     (
         axum::http::StatusCode::OK,
         [(axum::http::header::CONTENT_TYPE, "application/json")],
         json
     )
+}
+
+async fn list_blocks(
+    axum::extract::State(state): axum::extract::State<Arc<AppState>>,
+) -> Json<Vec<blocks::BlockDefinition>> {
+    let blocks = state.block_store.list().await;
+    Json(blocks)
+}
+
+async fn create_or_update_block(
+    axum::extract::State(state): axum::extract::State<Arc<AppState>>,
+    Json(block): Json<blocks::BlockDefinition>,
+) -> Result<(), (axum::http::StatusCode, String)> {
+    state.block_store.create_or_update(block).await
+        .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+}
+
+async fn delete_block(
+    axum::extract::State(state): axum::extract::State<Arc<AppState>>,
+    axum::extract::Path(block_type): axum::extract::Path<String>,
+) -> Result<(), (axum::http::StatusCode, String)> {
+    match state.block_store.delete(&block_type).await {
+        Ok(true) => Ok(()),
+        Ok(false) => Err((axum::http::StatusCode::NOT_FOUND, "Block not found".to_string())),
+        Err(e) => Err((axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+    }
 }
 
 async fn handle_socket(socket: WebSocket, state: Arc<AppState>) {

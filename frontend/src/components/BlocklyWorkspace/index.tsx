@@ -6,7 +6,7 @@ import { initBlockGenerators, BlockExtractor } from './generators';
 import { registerEntityField } from './EntityField';
 import { haClient } from '../../services/haClient';
 import { blocklyService } from '../../services/blocklyService';
-import { BlocklyToolbox } from '../../types/blockly';
+import { BlocklyToolbox, BlockDefinition } from '../../types/blockly';
 import { TriggerDefinition, ConditionDefinition } from '../../types/automation';
 
 function createEntityField(defaultValue: string) {
@@ -14,93 +14,79 @@ function createEntityField(defaultValue: string) {
   return EntityFieldClass ? new EntityFieldClass(defaultValue) : new Blockly.FieldTextInput(defaultValue);
 }
 
-// Define custom blocks
-Blockly.Blocks['ha_state_trigger'] = {
-  init: function() {
-    this.appendDummyInput()
-        .appendField("When entity")
-        .appendField(createEntityField("entity.id"), "ENTITY_ID")
-        .appendField("changes to")
-        .appendField(new Blockly.FieldTextInput("state"), "STATE");
-    this.setPreviousStatement(true, null);
-    this.setNextStatement(true, null);
-    this.setColour(230);
-    this.setTooltip("Triggers when an entity changes to a specific state");
-    this.setHelpUrl("");
-  }
-};
+interface ProcessedBlockArg {
+  type: string;
+  name: string;
+  text: string;
+  customField?: boolean;
+}
 
-Blockly.Blocks['ha_time_trigger'] = {
-  init: function() {
-    this.appendDummyInput()
-        .appendField("At time")
-        .appendField(new Blockly.FieldTextInput("00:00"), "TIME");
-    this.setPreviousStatement(true, null);
-    this.setNextStatement(true, null);
-    this.setColour(230);
-    this.setTooltip("Triggers at a specific time");
-    this.setHelpUrl("");
-  }
-};
+interface ProcessedBlockDefinition extends Omit<BlockDefinition, 'args0'> {
+  args0: ProcessedBlockArg[];
+}
 
-Blockly.Blocks['ha_state_condition'] = {
-  init: function() {
-    this.appendDummyInput()
-        .appendField("Entity")
-        .appendField(createEntityField("entity.id"), "ENTITY_ID")
-        .appendField("is")
-        .appendField(new Blockly.FieldTextInput("state"), "STATE");
-    this.setOutput(true, "Boolean");
-    this.setColour(120);
-    this.setTooltip("Check if an entity is in a specific state");
-    this.setHelpUrl("");
-  }
-};
+interface BlocklyField {
+  name: string;
+  sourceBlock_: any;
+  init: () => void;
+  setSourceBlock: (block: any) => void;
+}
 
-Blockly.Blocks['ha_time_condition'] = {
-  init: function() {
-    this.appendDummyInput()
-        .appendField("Time is between")
-        .appendField(new Blockly.FieldTextInput("00:00"), "START_TIME")
-        .appendField("and")
-        .appendField(new Blockly.FieldTextInput("23:59"), "END_TIME");
-    this.setOutput(true, "Boolean");
-    this.setColour(120);
-    this.setTooltip("Check if current time is within a specific range");
-    this.setHelpUrl("");
-  }
-};
+interface BlocklyInput {
+  fieldRow: BlocklyField[];
+}
 
-Blockly.Blocks['ha_call_service'] = {
-  init: function() {
-    this.appendDummyInput()
-        .appendField("Call service")
-        .appendField(new Blockly.FieldTextInput("domain.service"), "SERVICE");
-    this.appendDummyInput()
-        .appendField("with entity")
-        .appendField(createEntityField("entity.id"), "ENTITY_ID");
-    this.setPreviousStatement(true, null);
-    this.setNextStatement(true, null);
-    this.setColour(60);
-    this.setTooltip("Call a Home Assistant service");
-    this.setHelpUrl("");
-  }
-};
+function registerBlocks(blocks: BlockDefinition[]) {
+  // Clear any existing block definitions
+  blocks.forEach(block => {
+    delete Blockly.Blocks[block.type];
+  });
 
-Blockly.Blocks['ha_set_state'] = {
-  init: function() {
-    this.appendDummyInput()
-        .appendField("Set")
-        .appendField(createEntityField("entity.id"), "ENTITY_ID")
-        .appendField("to")
-        .appendField(new Blockly.FieldTextInput("state"), "STATE");
-    this.setPreviousStatement(true, null);
-    this.setNextStatement(true, null);
-    this.setColour(60);
-    this.setTooltip("Set an entity to a specific state");
-    this.setHelpUrl("");
-  }
-};
+  const blockDefinitions = blocks.map(block => ({
+    ...block,
+    args0: block.args0.map(arg => {
+      if (arg.type === 'field_entity') {
+        return {
+          type: 'field_input', // We'll replace this with our custom field
+          name: arg.name,
+          text: arg.default,
+          customField: true, // Mark for post-processing
+        };
+      }
+      return {
+        type: arg.type,
+        name: arg.name,
+        text: arg.default,
+      };
+    }),
+  })) as ProcessedBlockDefinition[];
+
+  // Register the blocks
+  Blockly.defineBlocksWithJsonArray(blockDefinitions);
+
+  // Post-process to add custom entity fields
+  blockDefinitions.forEach(block => {
+    const originalInit = Blockly.Blocks[block.type].init;
+    Blockly.Blocks[block.type].init = function(this: any) {
+      originalInit.call(this);
+
+      // Replace marked fields with entity fields
+      block.args0.forEach(arg => {
+        if (arg.type === 'field_entity') {
+          const input = this.inputList[0] as BlocklyInput;
+          const fieldIndex = input.fieldRow.findIndex(f => f.name === arg.name);
+          if (fieldIndex !== -1) {
+            const entityField = createEntityField(arg.text) as BlocklyField;
+            input.fieldRow[fieldIndex] = entityField;
+            entityField.setSourceBlock(this);
+            entityField.init();
+            entityField.name = arg.name;
+          }
+        }
+      });
+    };
+  });
+}
 
 interface WorkspaceChangeData {
   workspace: any; // Blockly workspace serialization
@@ -121,25 +107,28 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = memo(({ onWorkspaceCha
   const [toolboxConfig, setToolboxConfig] = useState<BlocklyToolbox | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch toolbox configuration
+  // Fetch toolbox configuration and initialize blocks
   useEffect(() => {
-    const fetchToolboxConfig = async () => {
+    const initialize = async () => {
       try {
-        const config = await blocklyService.getToolboxConfig();
-        setToolboxConfig(config);
+        // Initialize generators and custom fields
+        extractorRef.current = initBlockGenerators();
+        registerEntityField();
+
+        // Fetch toolbox config and blocks
+        const response = await blocklyService.getToolboxConfig();
+        setToolboxConfig(response.toolbox);
+
+        // Register blocks
+        registerBlocks(response.blocks);
+
         setError(null);
       } catch (err) {
-        console.error('Error fetching toolbox config:', err);
-        setError('Failed to load toolbox configuration');
+        console.error('Error initializing workspace:', err);
+        setError('Failed to initialize workspace');
       }
     };
-    fetchToolboxConfig();
-  }, []);
-
-  // Initialize block generators and custom fields
-  useEffect(() => {
-    extractorRef.current = initBlockGenerators();
-    registerEntityField();
+    initialize();
   }, []);
 
   // Connect to Home Assistant
