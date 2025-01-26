@@ -1,33 +1,22 @@
-FROM rust:1.84-slim as builder
+ARG BUILD_FROM=ghcr.io/hassio-addons/base:17.1.0
+FROM ${BUILD_FROM}
+
+# Copy frontend assets
+COPY frontend/build/ /app/static/
+
+# Copy the architecture-specific binary
+ARG TARGETARCH
+ARG TARGETVARIANT
+COPY backend/target/${TARGETARCH}${TARGETVARIANT:+/}${TARGETVARIANT}/ha-advanced-automation /app/ha-advanced-automation
 
 WORKDIR /app
-COPY backend/Cargo.toml backend/Cargo.lock ./backend/
-COPY backend/src ./backend/src
 
-WORKDIR /app/backend
-RUN cargo build --release
+# Make binary executable
+RUN chmod +x /app/ha-advanced-automation
 
-FROM node:23-slim as frontend-builder
-
-WORKDIR /app
-COPY frontend/package*.json ./frontend/
-WORKDIR /app/frontend
-RUN npm install
-
-COPY frontend ./
-RUN npm run build
-
-FROM debian:bookworm-slim
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
-COPY --from=builder /app/backend/target/release/ha-advanced-automation ./
-COPY --from=frontend-builder /app/frontend/build ./static
-
+# Set up Home Assistant Add-on specifics
 ENV PORT=3001
 EXPOSE 3001
 
-CMD ["./ha-advanced-automation"]
+# Start the application
+CMD ["/app/ha-advanced-automation"]

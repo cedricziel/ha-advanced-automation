@@ -1,0 +1,11 @@
+[build]
+target = ["x86_64-unknown-linux-gnu", "armv7-unknown-linux-gnueabihf", "aarch64-unknown-linux-gnu"]
+
+[target.x86_64-unknown-linux-gnu]
+linker = "cross-gcc"
+
+[target.armv7-unknown-linux-gnueabihf]
+linker = "cross-gcc"
+
+[target.aarch64-unknown-linux-gnu]
+linker = "cross-gcc"

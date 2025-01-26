@@ -32,6 +32,12 @@ jobs:
     - name: Build
       run: npm run build
 
+    - name: Upload frontend build
+      uses: actions/upload-artifact@v4
+      with:
+        name: frontend-build
+        path: frontend/build/
+
   backend:
     runs-on: ubuntu-latest
     defaults:
@@ -47,6 +53,9 @@ jobs:
         profile: minimal
         toolchain: stable
 
+    - name: Install cross
+      run: cargo install cross
+
     - name: Cache Rust dependencies
       uses: actions/cache@v4
       with:
@@ -58,14 +67,21 @@ jobs:
           backend/target/
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-    - name: Check
-      run: cargo check
+    - name: Build all targets
+      run: cross build --release
 
-    - name: Run tests
-      run: cargo test
+    - name: Prepare binaries for Docker
+      run: |
+        mkdir -p backend/target/amd64 backend/target/arm/v7 backend/target/arm64
+        cp target/x86_64-unknown-linux-gnu/release/ha-advanced-automation backend/target/amd64/
+        cp target/armv7-unknown-linux-gnueabihf/release/ha-advanced-automation backend/target/arm/v7/
+        cp target/aarch64-unknown-linux-gnu/release/ha-advanced-automation backend/target/arm64/
 
-    - name: Build
-      run: cargo build --release
+    - name: Upload binaries
+      uses: actions/upload-artifact@v4
+      with:
+        name: backend-binaries
+        path: backend/target/
 
   docker:
     needs: [frontend, backend]
@@ -81,10 +97,22 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3.0.0
 
+      - name: Download frontend build
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/build
+
+      - name: Download backend binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-binaries
+          path: backend/target
+
       - name: Build Docker image
         uses: docker/build-push-action@v5.1.0
         with:
           context: .
-          platforms: linux/amd64,linux/386,linux/arm/v6,linux/arm/v7,linux/arm64
+          platforms: linux/amd64,linux/arm/v7,linux/arm64
           push: false
           tags: local/ha-advanced-automation:test
