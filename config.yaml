@@ -16,6 +16,8 @@ boot: auto
 ingress: true
 panel_icon: mdi:code-block-braces
 init: false
+map:
+  - config:rw
 options:
   log_level: info
 schema:
