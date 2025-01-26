@@ -5,8 +5,8 @@ updates:
   - package-ecosystem: "npm"
     directory: "/frontend"
     schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 10
+      interval: "daily"
+    open-pull-requests-limit: 30
     assignees:
       - cedricziel
     reviewers:
@@ -16,8 +16,8 @@ updates:
   - package-ecosystem: "cargo"
     directory: "/backend"
     schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 10
+      interval: "daily"
+    open-pull-requests-limit: 30
     assignees:
       - cedricziel
     reviewers:
