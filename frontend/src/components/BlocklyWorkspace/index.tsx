@@ -158,8 +158,9 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = memo(({ onWorkspaceCha
   useEffect(() => {
     haClient.connect();
     const unsubscribe = haClient.onStateChanged((entityId, state) => {
+      // Keep subscription active to ensure state updates are received
       if (!isUnmountedRef.current) {
-        console.log('Entity state changed:', entityId, state);
+        // State changes will update the EntityField dropdowns
       }
     });
     return () => {
@@ -168,32 +169,32 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = memo(({ onWorkspaceCha
     };
   }, []);
 
-  // Memoized workspace change handler with debounce
-  const handleWorkspaceChange = useCallback(
-    debounce((workspace: Blockly.Workspace) => {
-      if (!workspace || isUnmountedRef.current) return;
-      workspaceRef.current = workspace;
+  // Memoized workspace change handler
+  const handleWorkspaceChange = useCallback((workspace: Blockly.Workspace) => {
+    if (!workspace || isUnmountedRef.current) return;
+    workspaceRef.current = workspace;
 
-      if (extractorRef.current && workspace) {
+    // Debounce the state update
+    const debouncedUpdate = debounce(() => {
+      if (extractorRef.current && workspace && !isUnmountedRef.current) {
         try {
           const state = Blockly.serialization.workspaces.save(workspace);
           const triggers = extractorRef.current.extractTriggers(workspace);
           const conditions = extractorRef.current.extractConditions(workspace);
 
-          if (!isUnmountedRef.current) {
-            onWorkspaceChange?.({
-              workspace: state,
-              triggers,
-              conditions
-            });
-          }
+          onWorkspaceChange?.({
+            workspace: state,
+            triggers,
+            conditions
+          });
         } catch (error) {
           console.error('Error generating automation:', error);
         }
       }
-    }, 300),
-    [onWorkspaceChange]
-  );
+    }, 300);
+
+    debouncedUpdate();
+  }, [onWorkspaceChange, isUnmountedRef]);
 
   // Handle workspace initialization
   const onInject = useCallback((workspace: Blockly.Workspace) => {

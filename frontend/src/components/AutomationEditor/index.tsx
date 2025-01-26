@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './AutomationEditor.css';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
@@ -12,7 +12,9 @@ import {
   Alert,
   Tabs,
   Tab,
+  Badge,
 } from '@mui/material';
+import { StateChangeInspector } from '../StateChangeInspector';
 import Split from 'react-split';
 import BlocklyWorkspace from '../BlocklyWorkspace';
 import { automationService } from '../../services/automationService';
@@ -194,11 +196,18 @@ export const AutomationEditor: React.FC = () => {
               <Tabs value={selectedTab} onChange={handleTabChange}>
                 <Tab label="Details" />
                 <Tab label="Raw JSON" />
+                <Tab
+                  label={
+                    <Badge color="primary" variant="dot" invisible={false}>
+                      State Changes
+                    </Badge>
+                  }
+                />
               </Tabs>
             </Box>
 
             <Box className="sidebar-content" sx={{ p: 2 }}>
-              {selectedTab === 0 ? (
+              {selectedTab === 0 && (
                 <form onSubmit={(e) => e.preventDefault()}>
                   <TextField
                     label="Name"
@@ -236,7 +245,8 @@ export const AutomationEditor: React.FC = () => {
                     </>
                   )}
                 </form>
-              ) : (
+              )}
+              {selectedTab === 1 && (
                 <Box sx={{ mt: 2 }}>
                   <pre style={{
                     whiteSpace: 'pre-wrap',
@@ -248,6 +258,20 @@ export const AutomationEditor: React.FC = () => {
                   }}>
                     {JSON.stringify(editorState, null, 2)}
                   </pre>
+                </Box>
+              )}
+              {selectedTab === 2 && (
+                <Box sx={{
+                  mt: 2,
+                  height: 'calc(100vh - 250px)',
+                  '& .state-change-inspector': {
+                    height: '100%',
+                    border: '1px solid rgba(0, 0, 0, 0.12)',
+                    borderRadius: 1,
+                    bgcolor: 'background.paper'
+                  }
+                }}>
+                  <StateChangeInspector />
                 </Box>
               )}
             </Box>

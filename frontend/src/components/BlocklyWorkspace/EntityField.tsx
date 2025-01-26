@@ -16,6 +16,38 @@ class EntityFieldWidget extends Blockly.FieldTextInput {
     constructor(value: string, validator?: Blockly.FieldTextInput['validator_']) {
         super(value, validator);
         this.dropdownDiv = null;
+        this.setupEntitySync();
+    }
+
+    private setupEntitySync() {
+        // Subscribe to HA state changes to keep entities up to date
+        const unsubscribe = haClient.onStateChanged((entityId, state) => {
+            const entityIndex = this.entities.findIndex(e => e.id === entityId);
+            if (entityIndex !== -1) {
+                this.entities[entityIndex] = {
+                    id: entityId,
+                    state: state.state,
+                    attributes: state.attributes
+                };
+            } else {
+                this.entities.push({
+                    id: entityId,
+                    state: state.state,
+                    attributes: state.attributes
+                });
+            }
+            // Sort entities by ID for easier navigation
+            this.entities.sort((a, b) => a.id.localeCompare(b.id));
+            // Update dropdown if it's open
+            if (this.dropdownDiv) {
+                this.updateDropdownContent(this.htmlInput_?.value || '');
+            }
+        });
+
+        // Store unsubscribe function for cleanup
+        (this as any).unsubscribe = unsubscribe;
+
+        // Initial load of entities
         this.loadEntities();
     }
 
@@ -27,14 +59,24 @@ class EntityFieldWidget extends Blockly.FieldTextInput {
                 state: state.state,
                 attributes: state.attributes
             }));
+            // Sort entities by ID for easier navigation
+            this.entities.sort((a, b) => a.id.localeCompare(b.id));
+            // Update dropdown if it's open
+            if (this.dropdownDiv) {
+                this.updateDropdownContent(this.htmlInput_?.value || '');
+            }
         } catch (error) {
             console.error('Failed to load entities:', error);
+            // Retry after a short delay if failed
+            setTimeout(() => this.loadEntities(), 2000);
         }
     }
 
     showEditor_() {
         super.showEditor_();
+        // Create dropdown immediately and refresh entities
         this.createDropdown();
+        this.loadEntities();
     }
 
     private getDomainIcon(domain: string): string {
@@ -398,6 +440,10 @@ class EntityFieldWidget extends Blockly.FieldTextInput {
     dispose() {
         if (this.dropdownDiv) {
             this.dropdownDiv.remove();
+        }
+        // Clean up subscription
+        if ((this as any).unsubscribe) {
+            (this as any).unsubscribe();
         }
         super.dispose();
     }
