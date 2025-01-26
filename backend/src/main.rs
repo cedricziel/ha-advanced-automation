@@ -52,9 +52,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ha_client.connect(ha_host, token).await?;
 
     // Create app state
+    let automation_store = automation::AutomationStore::new().await?;
     let state = Arc::new(AppState {
         ha_client: ha_client.clone(),
-        automation_store: Arc::new(automation::AutomationStore::new()),
+        automation_store: Arc::new(automation_store),
     });
 
     // Create CORS layer
@@ -144,9 +145,11 @@ async fn get_automation(
 async fn create_automation(
     axum::extract::State(state): axum::extract::State<Arc<AppState>>,
     Json(data): Json<automation::AutomationCreate>,
-) -> Json<automation::Automation> {
-    let automation = state.automation_store.create(data).await;
-    Json(automation)
+) -> Result<Json<automation::Automation>, (axum::http::StatusCode, String)> {
+    match state.automation_store.create(data).await {
+        Ok(automation) => Ok(Json(automation)),
+        Err(e) => Err((axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+    }
 }
 
 async fn update_automation(
@@ -154,10 +157,10 @@ async fn update_automation(
     axum::extract::Path(id): axum::extract::Path<String>,
     Json(data): Json<automation::AutomationUpdate>,
 ) -> Result<Json<automation::Automation>, (axum::http::StatusCode, String)> {
-    if let Some(automation) = state.automation_store.update(&id, data).await {
-        Ok(Json(automation))
-    } else {
-        Err((axum::http::StatusCode::NOT_FOUND, "Automation not found".to_string()))
+    match state.automation_store.update(&id, data).await {
+        Ok(Some(automation)) => Ok(Json(automation)),
+        Ok(None) => Err((axum::http::StatusCode::NOT_FOUND, "Automation not found".to_string())),
+        Err(e) => Err((axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
     }
 }
 
@@ -165,10 +168,10 @@ async fn delete_automation(
     axum::extract::State(state): axum::extract::State<Arc<AppState>>,
     axum::extract::Path(id): axum::extract::Path<String>,
 ) -> Result<(), (axum::http::StatusCode, String)> {
-    if state.automation_store.delete(&id).await {
-        Ok(())
-    } else {
-        Err((axum::http::StatusCode::NOT_FOUND, "Automation not found".to_string()))
+    match state.automation_store.delete(&id).await {
+        Ok(true) => Ok(()),
+        Ok(false) => Err((axum::http::StatusCode::NOT_FOUND, "Automation not found".to_string())),
+        Err(e) => Err((axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
     }
 }
 
@@ -181,10 +184,10 @@ async fn toggle_automation(
         .and_then(|v| v.as_bool())
         .ok_or((axum::http::StatusCode::BAD_REQUEST, "Missing or invalid 'enabled' field".to_string()))?;
 
-    if let Some(automation) = state.automation_store.toggle(&id, enabled).await {
-        Ok(Json(automation))
-    } else {
-        Err((axum::http::StatusCode::NOT_FOUND, "Automation not found".to_string()))
+    match state.automation_store.toggle(&id, enabled).await {
+        Ok(Some(automation)) => Ok(Json(automation)),
+        Ok(None) => Err((axum::http::StatusCode::NOT_FOUND, "Automation not found".to_string())),
+        Err(e) => Err((axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
     }
 }
 
