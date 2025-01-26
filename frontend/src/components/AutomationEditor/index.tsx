@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import './AutomationEditor.css';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Box,
@@ -10,7 +11,10 @@ import {
   FormControlLabel,
   Snackbar,
   Alert,
+  Tabs,
+  Tab,
 } from '@mui/material';
+import Split from 'react-split';
 import BlocklyWorkspace from '../BlocklyWorkspace';
 import { automationService } from '../../services/automationService';
 import { AutomationCreateRequest, AutomationUpdateRequest } from '../../types/automation';
@@ -28,6 +32,7 @@ export const AutomationEditor: React.FC = () => {
   const [loading, setLoading] = useState(isEditing);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [selectedTab, setSelectedTab] = useState(0);
 
   const loadAutomation = React.useCallback(async () => {
     try {
@@ -137,72 +142,108 @@ export const AutomationEditor: React.FC = () => {
     );
   }
 
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setSelectedTab(newValue);
+  };
+
   return (
-    <Box sx={{ p: 3 }}>
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h5" gutterBottom>
-          {isEditing ? 'Edit Automation' : 'Create New Automation'}
-        </Typography>
-        <form onSubmit={(e) => e.preventDefault()}>
-          <TextField
-            label="Name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            fullWidth
-            required
-            margin="normal"
-          />
-          <TextField
-            label="Description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            fullWidth
-            multiline
-            rows={2}
-            margin="normal"
-          />
-          {isEditing && (
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={enabled}
-                  onChange={(e) => setEnabled(e.target.checked)}
-                  color="primary"
-                />
-              }
-              label="Enabled"
-              sx={{ mt: 2 }}
+    <Box sx={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column' }}>
+      <Typography variant="h5" gutterBottom sx={{ p: 2 }}>
+        {isEditing ? 'Edit Automation' : 'Create New Automation'}
+      </Typography>
+
+      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <Split
+          sizes={[70, 30]}
+          minSize={200}
+          expandToMin={false}
+          gutterSize={10}
+          gutterAlign="center"
+          direction="horizontal"
+          className="split"
+        >
+          <div className="blockly-container">
+            <BlocklyWorkspace
+              onWorkspaceChange={safeSetWorkspaceState}
+              initialState={workspaceState}
             />
-          )}
-        </form>
-      </Paper>
+          </div>
 
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>
-          Automation Logic
-        </Typography>
-        <Box sx={{ height: 'calc(100vh - 400px)', minHeight: '400px' }}>
-          <BlocklyWorkspace
-            onWorkspaceChange={safeSetWorkspaceState}
-            initialState={workspaceState}
-          />
-        </Box>
-      </Paper>
+          <div className="sidebar">
+            <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+              <Tabs value={selectedTab} onChange={handleTabChange}>
+                <Tab label="Details" />
+                <Tab label="Raw JSON" />
+              </Tabs>
+            </Box>
 
-      <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-        <Button
-          variant="outlined"
-          onClick={() => navigate('/automations')}
-        >
-          Cancel
-        </Button>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handleSubmit}
-        >
-          {isEditing ? 'Update' : 'Create'} Automation
-        </Button>
+            <Box className="sidebar-content" sx={{ p: 2 }}>
+              {selectedTab === 0 ? (
+                <form onSubmit={(e) => e.preventDefault()}>
+                  <TextField
+                    label="Name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    fullWidth
+                    required
+                    margin="normal"
+                  />
+                  <TextField
+                    label="Description"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    fullWidth
+                    multiline
+                    rows={2}
+                    margin="normal"
+                  />
+                  {isEditing && (
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={enabled}
+                          onChange={(e) => setEnabled(e.target.checked)}
+                          color="primary"
+                        />
+                      }
+                      label="Enabled"
+                      sx={{ mt: 2 }}
+                    />
+                  )}
+                </form>
+              ) : (
+                <Box sx={{ mt: 2 }}>
+                  <pre style={{
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                    backgroundColor: '#f5f5f5',
+                    padding: '1rem',
+                    borderRadius: '4px',
+                    margin: 0
+                  }}>
+                    {JSON.stringify(workspaceState, null, 2)}
+                  </pre>
+                </Box>
+              )}
+            </Box>
+
+            <Box className="sidebar-footer" sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+              <Button
+                variant="outlined"
+                onClick={() => navigate('/automations')}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handleSubmit}
+              >
+                {isEditing ? 'Update' : 'Create'} Automation
+              </Button>
+            </Box>
+          </div>
+        </Split>
       </Box>
 
       <Snackbar

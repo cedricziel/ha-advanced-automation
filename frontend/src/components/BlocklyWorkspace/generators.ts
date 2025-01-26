@@ -1,6 +1,6 @@
 import * as Blockly from 'blockly';
 import { Block } from 'blockly';
-import { javascriptGenerator } from 'blockly/javascript';
+import { javascriptGenerator, Order } from 'blockly/javascript';
 
 interface AutomationBlock {
   platform?: string;
@@ -128,7 +128,9 @@ export const initBlockGenerators = () => {
         .filter(Boolean)
         .map((text: string) => {
           try {
-            return JSON.parse(text) as AutomationBlock;
+            // Remove trailing semicolon if present
+            const cleanText = text.replace(/;$/, '');
+            return JSON.parse(cleanText) as AutomationBlock;
           } catch (error) {
             console.error('Failed to parse block:', text, error);
             return null;

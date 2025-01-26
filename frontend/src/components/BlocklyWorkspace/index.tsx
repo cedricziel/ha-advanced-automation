@@ -21,6 +21,8 @@ Blockly.Blocks['ha_state_trigger'] = {
         .appendField(createEntityField("entity.id"), "ENTITY_ID")
         .appendField("changes to")
         .appendField(new Blockly.FieldTextInput("state"), "STATE");
+    this.setPreviousStatement(true, null);
+    this.setNextStatement(true, null);
     this.setColour(230);
     this.setTooltip("Triggers when an entity changes to a specific state");
     this.setHelpUrl("");
@@ -32,6 +34,8 @@ Blockly.Blocks['ha_time_trigger'] = {
     this.appendDummyInput()
         .appendField("At time")
         .appendField(new Blockly.FieldTextInput("00:00"), "TIME");
+    this.setPreviousStatement(true, null);
+    this.setNextStatement(true, null);
     this.setColour(230);
     this.setTooltip("Triggers at a specific time");
     this.setHelpUrl("");
@@ -160,7 +164,7 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onWorkspaceChange, 
         console.error('Error loading initial workspace state:', error);
       }
     }
-  }, [initialState, workspaceRef.current]);
+  }, [initialState]);
 
   // Debounced workspace change handler
   const debouncedHandleChange = useCallback(
@@ -225,28 +229,20 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onWorkspaceChange, 
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', height: '100%' }}>
-      <div style={{ flex: 2, minHeight: 0 }}>
-        <ReactBlocklyWorkspace
-          toolboxConfiguration={toolboxConfig}
-          workspaceConfiguration={{
-            grid: {
-              spacing: 20,
-              length: 3,
-              colour: '#ccc',
-              snap: true
-            }
-          }}
-          onWorkspaceChange={handleWorkspaceChange}
-          className="blockly-workspace"
-        />
-      </div>
-      <div style={{ flex: 1, minHeight: 0, padding: '20px', backgroundColor: '#f5f5f5', overflowY: 'auto' }}>
-        <h3>Generated Automation</h3>
-        <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-          {automationYaml}
-        </pre>
-      </div>
+    <div style={{ height: '100%', width: '100%' }}>
+      <ReactBlocklyWorkspace
+        toolboxConfiguration={toolboxConfig}
+        workspaceConfiguration={{
+          grid: {
+            spacing: 20,
+            length: 3,
+            colour: '#ccc',
+            snap: true
+          }
+        }}
+        onWorkspaceChange={handleWorkspaceChange}
+        className="blockly-workspace"
+      />
     </div>
   );
 };

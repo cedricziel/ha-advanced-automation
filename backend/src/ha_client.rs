@@ -129,7 +129,30 @@ impl HaClient {
             while let Some(msg) = read.next().await {
                 match msg {
                     Ok(Message::Text(text)) => {
-                        if let Ok(event) = serde_json::from_str::<HaEvent>(&text) {
+                        let json: serde_json::Value = if let Ok(v) = serde_json::from_str(&text) {
+                            v
+                        } else {
+                            continue;
+                        };
+
+                        // Handle get_states response
+                        if json["type"] == "result" {
+                            if let Some(result) = json["result"].as_array() {
+                                let mut states_map = states.write().await;
+                                for state in result {
+                                    if let (Some(entity_id), Some(state_obj)) = (
+                                        state["entity_id"].as_str(),
+                                        serde_json::from_value::<EntityState>(state.clone()).ok()
+                                    ) {
+                                        states_map.insert(entity_id.to_string(), state_obj);
+                                    }
+                                }
+                            }
+                            continue;
+                        }
+
+                        // Handle state changes
+                        if let Ok(event) = serde_json::from_value::<HaEvent>(json) {
                             if let Some(event_data) = event.event {
                                 if let Some(state_changed) = event_data.data {
                                     if let (Some(entity_id), Some(new_state)) = (state_changed.entity_id, state_changed.new_state) {
