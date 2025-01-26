@@ -143,9 +143,14 @@ export const AutomationsList: React.FC = () => {
                     {automation.description}
                   </Typography>
                 )}
-                <Typography variant="caption" color="text.secondary">
-                  Last updated: {new Date(automation.updated_at).toLocaleString()}
-                </Typography>
+                <Box>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    Version: {automation.version}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    Last updated: {new Date(automation.updated_at).toLocaleString()}
+                  </Typography>
+                </Box>
               </CardContent>
               <CardActions sx={{ justifyContent: 'space-between', px: 2, pb: 1 }}>
                 <Switch

@@ -1,156 +1,169 @@
 import * as Blockly from 'blockly';
-import { Block } from 'blockly';
-import { javascriptGenerator, Order } from 'blockly/javascript';
+import { TriggerDefinition, ConditionDefinition } from '../../types/automation';
 
-interface AutomationBlock {
-  platform?: string;
-  condition?: string;
-  service?: string;
-  entity_id?: string;
-  to?: string;
-  at?: string;
-  after?: string;
-  before?: string;
-  state?: string;
-  target?: {
-    entity_id: string;
+export interface BlockExtractor {
+  extractTriggers(workspace: Blockly.Workspace): TriggerDefinition[];
+  extractConditions(workspace: Blockly.Workspace): ConditionDefinition[];
+}
+
+class HomeAssistantBlockExtractor implements BlockExtractor {
+  extractTriggers(workspace: Blockly.Workspace): TriggerDefinition[] {
+    const triggers: TriggerDefinition[] = [];
+
+    // Get state triggers
+    const stateTriggers = workspace.getBlocksByType('ha_state_trigger', false);
+    stateTriggers.forEach(block => {
+      triggers.push({
+        type: 'state',
+        config: {
+          entity_id: block.getFieldValue('ENTITY_ID'),
+          to: block.getFieldValue('STATE')
+        }
+      });
+    });
+
+    // Get time triggers
+    const timeTriggers = workspace.getBlocksByType('ha_time_trigger', false);
+    timeTriggers.forEach(block => {
+      triggers.push({
+        type: 'time',
+        config: {
+          at: block.getFieldValue('TIME')
+        }
+      });
+    });
+
+    return triggers;
+  }
+
+  extractConditions(workspace: Blockly.Workspace): ConditionDefinition[] {
+    const conditions: ConditionDefinition[] = [];
+
+    // Get state conditions
+    const stateConditions = workspace.getBlocksByType('ha_state_condition', false);
+    stateConditions.forEach(block => {
+      conditions.push({
+        type: 'state',
+        config: {
+          entity_id: block.getFieldValue('ENTITY_ID'),
+          state: block.getFieldValue('STATE')
+        }
+      });
+    });
+
+    // Get time conditions
+    const timeConditions = workspace.getBlocksByType('ha_time_condition', false);
+    timeConditions.forEach(block => {
+      conditions.push({
+        type: 'time',
+        config: {
+          after: block.getFieldValue('START_TIME'),
+          before: block.getFieldValue('END_TIME')
+        }
+      });
+    });
+
+    return conditions;
+  }
+}
+
+// Initialize block definitions
+export function initBlockDefinitions() {
+  // State Trigger
+  Blockly.Blocks['ha_state_trigger'] = {
+    init: function() {
+      this.appendDummyInput()
+          .appendField("When entity")
+          .appendField(new Blockly.FieldTextInput("entity.id"), "ENTITY_ID")
+          .appendField("changes to")
+          .appendField(new Blockly.FieldTextInput("state"), "STATE");
+      this.setPreviousStatement(true, null);
+      this.setNextStatement(true, null);
+      this.setColour(230);
+      this.setTooltip("Triggers when an entity changes to a specific state");
+      this.setHelpUrl("");
+    }
   };
-  data?: {
-    entity_id: string;
-    state: string;
+
+  // Time Trigger
+  Blockly.Blocks['ha_time_trigger'] = {
+    init: function() {
+      this.appendDummyInput()
+          .appendField("At time")
+          .appendField(new Blockly.FieldTextInput("00:00"), "TIME");
+      this.setPreviousStatement(true, null);
+      this.setNextStatement(true, null);
+      this.setColour(230);
+      this.setTooltip("Triggers at a specific time");
+      this.setHelpUrl("");
+    }
+  };
+
+  // State Condition
+  Blockly.Blocks['ha_state_condition'] = {
+    init: function() {
+      this.appendDummyInput()
+          .appendField("Entity")
+          .appendField(new Blockly.FieldTextInput("entity.id"), "ENTITY_ID")
+          .appendField("is")
+          .appendField(new Blockly.FieldTextInput("state"), "STATE");
+      this.setOutput(true, "Boolean");
+      this.setColour(120);
+      this.setTooltip("Check if an entity is in a specific state");
+      this.setHelpUrl("");
+    }
+  };
+
+  // Time Condition
+  Blockly.Blocks['ha_time_condition'] = {
+    init: function() {
+      this.appendDummyInput()
+          .appendField("Time is between")
+          .appendField(new Blockly.FieldTextInput("00:00"), "START_TIME")
+          .appendField("and")
+          .appendField(new Blockly.FieldTextInput("23:59"), "END_TIME");
+      this.setOutput(true, "Boolean");
+      this.setColour(120);
+      this.setTooltip("Check if current time is within a specific range");
+      this.setHelpUrl("");
+    }
+  };
+
+  // Call Service
+  Blockly.Blocks['ha_call_service'] = {
+    init: function() {
+      this.appendDummyInput()
+          .appendField("Call service")
+          .appendField(new Blockly.FieldTextInput("domain.service"), "SERVICE")
+          .appendField("with entity")
+          .appendField(new Blockly.FieldTextInput("entity.id"), "ENTITY_ID");
+      this.setPreviousStatement(true, null);
+      this.setNextStatement(true, null);
+      this.setColour(60);
+      this.setTooltip("Call a Home Assistant service");
+      this.setHelpUrl("");
+    }
+  };
+
+  // Set State
+  Blockly.Blocks['ha_set_state'] = {
+    init: function() {
+      this.appendDummyInput()
+          .appendField("Set")
+          .appendField(new Blockly.FieldTextInput("entity.id"), "ENTITY_ID")
+          .appendField("to")
+          .appendField(new Blockly.FieldTextInput("state"), "STATE");
+      this.setPreviousStatement(true, null);
+      this.setNextStatement(true, null);
+      this.setColour(60);
+      this.setTooltip("Set an entity to a specific state");
+      this.setHelpUrl("");
+    }
   };
 }
 
-// Initialize blocks
-
-// State Trigger Generator
-javascriptGenerator.forBlock['ha_state_trigger'] = function(block: Block) {
-  const entityId = block.getFieldValue('ENTITY_ID');
-  const state = block.getFieldValue('STATE');
-
-  const yaml: AutomationBlock = {
-    platform: 'state',
-    entity_id: entityId,
-    to: state
-  };
-
-  return JSON.stringify(yaml);
-};
-
-// Time Trigger Generator
-javascriptGenerator.forBlock['ha_time_trigger'] = function(block: Block) {
-  const time = block.getFieldValue('TIME');
-
-  const yaml: AutomationBlock = {
-    platform: 'time',
-    at: time
-  };
-
-  return JSON.stringify(yaml);
-};
-
-// State Condition Generator
-javascriptGenerator.forBlock['ha_state_condition'] = function(block: Block) {
-  const entityId = block.getFieldValue('ENTITY_ID');
-  const state = block.getFieldValue('STATE');
-
-  const yaml: AutomationBlock = {
-    condition: 'state',
-    entity_id: entityId,
-    state: state
-  };
-
-  return JSON.stringify(yaml);
-};
-
-// Time Condition Generator
-javascriptGenerator.forBlock['ha_time_condition'] = function(block: Block) {
-  const startTime = block.getFieldValue('START_TIME');
-  const endTime = block.getFieldValue('END_TIME');
-
-  const yaml: AutomationBlock = {
-    condition: 'time',
-    after: startTime,
-    before: endTime
-  };
-
-  return JSON.stringify(yaml);
-};
-
-// Call Service Generator
-javascriptGenerator.forBlock['ha_call_service'] = function(block: Block) {
-  const service = block.getFieldValue('SERVICE');
-  const entityId = block.getFieldValue('ENTITY_ID');
-
-  const yaml: AutomationBlock = {
-    service,
-    target: {
-      entity_id: entityId
-    }
-  };
-
-  return JSON.stringify(yaml);
-};
-
-// Set State Generator
-javascriptGenerator.forBlock['ha_set_state'] = function(block: Block) {
-  const entityId = block.getFieldValue('ENTITY_ID');
-  const state = block.getFieldValue('STATE');
-
-  const yaml: AutomationBlock = {
-    service: 'homeassistant.set_state',
-    data: {
-      entity_id: entityId,
-      state: state
-    }
-  };
-
-  return JSON.stringify(yaml);
-};
-
+// Create and return the block extractor
 export const initBlockGenerators = () => {
-  // Convert workspace to Home Assistant automation YAML
-  return (workspace: Blockly.Workspace) => {
-    const code = javascriptGenerator.workspaceToCode(workspace);
-    try {
-      // Handle empty workspace
-      if (!code.trim()) {
-        return {
-          alias: 'Blockly Generated Automation',
-          description: 'Automation generated using the visual editor',
-          trigger: [],
-          condition: [],
-          action: []
-        };
-      }
-
-      const blocks = code.split('\n')
-        .filter(Boolean)
-        .map((text: string) => {
-          try {
-            // Remove trailing semicolon if present
-            const cleanText = text.replace(/;$/, '');
-            return JSON.parse(cleanText) as AutomationBlock;
-          } catch (error) {
-            console.error('Failed to parse block:', text, error);
-            return null;
-          }
-        })
-        .filter((block): block is AutomationBlock => block !== null);
-
-      // Basic Home Assistant automation structure
-      const automation = {
-        alias: 'Blockly Generated Automation',
-        description: 'Automation generated using the visual editor',
-        trigger: blocks.filter(b => b.platform),
-        condition: blocks.filter(b => b.condition),
-        action: blocks.filter(b => b.service)
-      };
-
-      return automation;
-    } catch (error) {
-      console.error('Failed to generate automation:', error);
-      return null;
-    }
-  };
+  initBlockDefinitions();
+  return new HomeAssistantBlockExtractor();
 };

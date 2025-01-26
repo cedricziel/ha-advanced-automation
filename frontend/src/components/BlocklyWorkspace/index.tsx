@@ -1,12 +1,13 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useCallback, memo } from 'react';
 import './BlocklyWorkspace.css';
 import { BlocklyWorkspace as ReactBlocklyWorkspace } from 'react-blockly';
 import * as Blockly from 'blockly';
-import { initBlockGenerators } from './generators';
+import { initBlockGenerators, BlockExtractor } from './generators';
 import { registerEntityField } from './EntityField';
 import { haClient } from '../../services/haClient';
 import { blocklyService } from '../../services/blocklyService';
 import { BlocklyToolbox } from '../../types/blockly';
+import { TriggerDefinition, ConditionDefinition } from '../../types/automation';
 
 function createEntityField(defaultValue: string) {
   const EntityFieldClass = Blockly.registry.getClass('field', 'field_entity');
@@ -101,15 +102,34 @@ Blockly.Blocks['ha_set_state'] = {
   }
 };
 
+interface WorkspaceChangeData {
+  workspace: any; // Blockly workspace serialization
+  triggers: TriggerDefinition[];
+  conditions: ConditionDefinition[];
+}
+
 interface BlocklyWorkspaceProps {
-  onWorkspaceChange?: (workspace: Blockly.Workspace) => void;
+  onWorkspaceChange?: (data: WorkspaceChangeData) => void;
   initialState?: any;
 }
 
-const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onWorkspaceChange, initialState }) => {
+// Debounce function outside component to prevent recreation
+const debounce = <T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): ((...args: Parameters<T>) => void) => {
+  let timeout: NodeJS.Timeout;
+  return (...args: Parameters<T>) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+};
+
+const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = memo(({ onWorkspaceChange, initialState }) => {
   const workspaceRef = useRef<Blockly.Workspace | null>(null);
-  const generatorRef = useRef<((workspace: Blockly.Workspace) => any) | null>(null);
-  const [automationYaml, setAutomationYaml] = useState<string>('');
+  const extractorRef = useRef<BlockExtractor | null>(null);
+  const isInitializedRef = useRef(false);
+  const isUnmountedRef = useRef(false);
   const [toolboxConfig, setToolboxConfig] = useState<BlocklyToolbox | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -130,7 +150,7 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onWorkspaceChange, 
 
   // Initialize block generators and custom fields
   useEffect(() => {
-    generatorRef.current = initBlockGenerators();
+    extractorRef.current = initBlockGenerators();
     registerEntityField();
   }, []);
 
@@ -138,79 +158,88 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onWorkspaceChange, 
   useEffect(() => {
     haClient.connect();
     const unsubscribe = haClient.onStateChanged((entityId, state) => {
-      console.log('Entity state changed:', entityId, state);
+      if (!isUnmountedRef.current) {
+        console.log('Entity state changed:', entityId, state);
+      }
     });
-    return () => unsubscribe();
-  }, []);
-
-  // Handle workspace initialization and cleanup
-  useEffect(() => {
-    let mounted = true;
-
     return () => {
-      mounted = false;
-      setAutomationYaml('');
-      // Let react-blockly handle workspace disposal
-      workspaceRef.current = null;
+      isUnmountedRef.current = true;
+      unsubscribe();
     };
   }, []);
 
-  // Load initial state when workspace and state are available
-  useEffect(() => {
-    if (initialState && workspaceRef.current) {
-      try {
-        Blockly.serialization.workspaces.load(initialState, workspaceRef.current);
-      } catch (error) {
-        console.error('Error loading initial workspace state:', error);
-      }
-    }
-  }, [initialState]);
+  // Memoized workspace change handler with debounce
+  const handleWorkspaceChange = useCallback(
+    debounce((workspace: Blockly.Workspace) => {
+      if (!workspace || isUnmountedRef.current) return;
+      workspaceRef.current = workspace;
 
-  // Debounced workspace change handler
-  const debouncedHandleChange = useCallback(
-    (() => {
-      let timeoutId: NodeJS.Timeout;
-      return (workspace: Blockly.Workspace) => {
-        workspaceRef.current = workspace;
+      if (extractorRef.current && workspace) {
+        try {
+          const state = Blockly.serialization.workspaces.save(workspace);
+          const triggers = extractorRef.current.extractTriggers(workspace);
+          const conditions = extractorRef.current.extractConditions(workspace);
 
-        // Clear previous timeout
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-        }
-
-        // Set new timeout
-        timeoutId = setTimeout(() => {
-          // Only update if we have a generator and the workspace exists
-          if (generatorRef.current && workspace) {
-            try {
-              const automation = generatorRef.current(workspace);
-              if (automation) {
-                try {
-                  setAutomationYaml(JSON.stringify(automation, null, 2));
-                } catch (error) {
-                  console.error('Error stringifying automation:', error);
-                  setAutomationYaml('');
-                }
-              } else {
-                setAutomationYaml('');
-              }
-              // Notify parent of changes
-              onWorkspaceChange?.(workspace);
-            } catch (error) {
-              console.error('Error generating automation:', error);
-            }
+          if (!isUnmountedRef.current) {
+            onWorkspaceChange?.({
+              workspace: state,
+              triggers,
+              conditions
+            });
           }
-        }, 300); // 300ms debounce
-      };
-    })(),
+        } catch (error) {
+          console.error('Error generating automation:', error);
+        }
+      }
+    }, 300),
     [onWorkspaceChange]
   );
 
-  const handleWorkspaceChange = useCallback((workspace: Blockly.Workspace) => {
-    if (!workspace) return;
+  // Handle workspace initialization
+  const onInject = useCallback((workspace: Blockly.Workspace) => {
     workspaceRef.current = workspace;
-    debouncedHandleChange(workspace);
-  }, [debouncedHandleChange]);
+
+    // Clear workspace first to prevent state mixing
+    workspace.clear();
+
+    // Load initial state if available and toolbox is ready
+    if (initialState && toolboxConfig) {
+      // Small delay to ensure workspace is fully initialized
+      setTimeout(() => {
+        if (!isUnmountedRef.current && workspace) {
+          try {
+            Blockly.serialization.workspaces.load(initialState, workspace);
+          } catch (error) {
+            console.error('Error loading initial workspace state:', error);
+          }
+        }
+      }, 100);
+    }
+  }, [initialState, toolboxConfig]);
+
+  // Reset workspace when initialState changes
+  useEffect(() => {
+    const workspace = workspaceRef.current;
+    if (workspace) {
+      workspace.clear();
+      if (initialState && toolboxConfig) {
+        try {
+          Blockly.serialization.workspaces.load(initialState, workspace);
+        } catch (error) {
+          console.error('Error loading initial workspace state:', error);
+        }
+      }
+    }
+  }, [initialState, toolboxConfig]);
+
+  // Cleanup effect
+  useEffect(() => {
+    return () => {
+      isUnmountedRef.current = true;
+      workspaceRef.current = null;
+      isInitializedRef.current = false;
+    };
+  }, []);
 
   if (error) {
     return (
@@ -241,10 +270,11 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({ onWorkspaceChange, 
           }
         }}
         onWorkspaceChange={handleWorkspaceChange}
+        onInject={onInject}
         className="blockly-workspace"
       />
     </div>
   );
-};
+});
 
 export default BlocklyWorkspace;

@@ -6,6 +6,7 @@ use tokio::sync::RwLock;
 use tokio::fs;
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
+use serde_json::Value;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Automation {
@@ -13,20 +14,37 @@ pub struct Automation {
     pub name: String,
     pub description: Option<String>,
     pub enabled: bool,
-    pub triggers: Vec<serde_json::Value>,
-    pub conditions: Vec<serde_json::Value>,
-    pub actions: Vec<serde_json::Value>,
+    pub version: i32,
+    pub triggers: Vec<TriggerDefinition>,
+    pub workspace: Value, // Blockly workspace state as JSON
+    pub conditions: Vec<ConditionDefinition>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TriggerDefinition {
+    #[serde(rename = "type")]
+    pub r#type: String,
+    #[serde(rename = "config")]
+    pub configuration: HashMap<String, Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConditionDefinition {
+    #[serde(rename = "type")]
+    pub r#type: String,
+    #[serde(rename = "config")]
+    pub configuration: HashMap<String, Value>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct AutomationCreate {
     pub name: String,
     pub description: Option<String>,
-    pub triggers: Vec<serde_json::Value>,
-    pub conditions: Vec<serde_json::Value>,
-    pub actions: Vec<serde_json::Value>,
+    pub triggers: Vec<TriggerDefinition>,
+    pub workspace: Value,
+    pub conditions: Vec<ConditionDefinition>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -34,9 +52,10 @@ pub struct AutomationUpdate {
     pub name: String,
     pub description: Option<String>,
     pub enabled: bool,
-    pub triggers: Vec<serde_json::Value>,
-    pub conditions: Vec<serde_json::Value>,
-    pub actions: Vec<serde_json::Value>,
+    pub version: i32,
+    pub triggers: Vec<TriggerDefinition>,
+    pub workspace: Value,
+    pub conditions: Vec<ConditionDefinition>,
 }
 
 #[derive(Debug, Clone)]
@@ -120,9 +139,10 @@ impl AutomationStore {
             name: data.name,
             description: data.description,
             enabled: true,
+            version: 1, // Initial version
             triggers: data.triggers,
+            workspace: data.workspace,
             conditions: data.conditions,
-            actions: data.actions,
             created_at: now,
             updated_at: now,
         };
@@ -138,18 +158,31 @@ impl AutomationStore {
     pub async fn update(&self, id: &str, data: AutomationUpdate) -> std::io::Result<Option<Automation>> {
         let mut automations = self.automations.write().await;
 
-        if let Some(automation) = automations.get_mut(id) {
-            automation.name = data.name;
-            automation.description = data.description;
-            automation.enabled = data.enabled;
-            automation.triggers = data.triggers;
-            automation.conditions = data.conditions;
-            automation.actions = data.actions;
-            automation.updated_at = Utc::now();
+        if let Some(existing) = automations.get(id) {
+            // Version check
+            if data.version != existing.version {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "Version mismatch - automation has been modified",
+                ));
+            }
 
-            let automation = automation.clone();
-            self.save_automation(&automation).await?;
-            Ok(Some(automation))
+            let updated = Automation {
+                id: id.to_string(),
+                name: data.name,
+                description: data.description,
+                enabled: data.enabled,
+                version: existing.version + 1, // Increment version
+                triggers: data.triggers,
+                workspace: data.workspace,
+                conditions: data.conditions,
+                created_at: existing.created_at,
+                updated_at: Utc::now(),
+            };
+
+            automations.insert(id.to_string(), updated.clone());
+            self.save_automation(&updated).await?;
+            Ok(Some(updated))
         } else {
             Ok(None)
         }

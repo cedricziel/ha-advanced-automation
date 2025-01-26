@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import './AutomationEditor.css';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
@@ -6,7 +6,6 @@ import {
   TextField,
   Button,
   Typography,
-  Paper,
   Switch,
   FormControlLabel,
   Snackbar,
@@ -17,8 +16,13 @@ import {
 import Split from 'react-split';
 import BlocklyWorkspace from '../BlocklyWorkspace';
 import { automationService } from '../../services/automationService';
-import { AutomationCreateRequest, AutomationUpdateRequest } from '../../types/automation';
-import * as Blockly from 'blockly';
+import { AutomationCreateRequest, AutomationUpdateRequest, WorkspaceChangeData } from '../../types/automation';
+
+interface EditorState {
+  workspace: any;
+  triggers: any[];
+  conditions: any[];
+}
 
 export const AutomationEditor: React.FC = () => {
   const navigate = useNavigate();
@@ -28,7 +32,12 @@ export const AutomationEditor: React.FC = () => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [enabled, setEnabled] = useState(true);
-  const [workspaceState, setWorkspaceState] = useState<any>(null);
+  const [version, setVersion] = useState(1);
+  const [editorState, setEditorState] = useState<EditorState>({
+    workspace: null,
+    triggers: [],
+    conditions: []
+  });
   const [loading, setLoading] = useState(isEditing);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -40,10 +49,11 @@ export const AutomationEditor: React.FC = () => {
       setName(automation.name);
       setDescription(automation.description || '');
       setEnabled(automation.enabled);
-      setWorkspaceState({
+      setVersion(automation.version);
+      setEditorState({
+        workspace: automation.workspace,
         triggers: automation.triggers,
-        conditions: automation.conditions,
-        actions: automation.actions,
+        conditions: automation.conditions
       });
     } catch (err) {
       setError('Failed to load automation');
@@ -54,53 +64,61 @@ export const AutomationEditor: React.FC = () => {
   }, [id]);
 
   useEffect(() => {
-    let mounted = true;
-
     if (id) {
       loadAutomation();
     }
 
     return () => {
-      mounted = false;
       // Cleanup state when component unmounts
       setName('');
       setDescription('');
       setEnabled(true);
-      setWorkspaceState(null);
+      setVersion(1);
+      setEditorState({
+        workspace: null,
+        triggers: [],
+        conditions: []
+      });
       setError(null);
       setSuccessMessage(null);
     };
   }, [id, loadAutomation]);
 
-  // Prevent state updates if component is unmounting
-  const safeSetWorkspaceState = useCallback((state: any) => {
-    if (state) {
-      setWorkspaceState(state);
-    }
-  }, []);
+  // Track if we're loading initial state
+  const [isLoadingState, setIsLoadingState] = useState(true);
 
-  const handleWorkspaceChange = useCallback(
-    (() => {
-      let timeoutId: NodeJS.Timeout;
-      return (workspace: Blockly.Workspace) => {
-        // Clear previous timeout
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-        }
+  const handleWorkspaceChange = useCallback((data: WorkspaceChangeData) => {
+    // Don't update state while loading initial state
+    if (isLoadingState) return;
 
-        // Set new timeout
-        timeoutId = setTimeout(() => {
-          const state = Blockly.serialization.workspaces.save(workspace);
-          setWorkspaceState(state);
-        }, 300); // 300ms debounce
+    setEditorState(prevState => {
+      // Only update if the data has actually changed
+      if (JSON.stringify(prevState) === JSON.stringify(data)) {
+        return prevState;
+      }
+      return {
+        workspace: data.workspace,
+        triggers: data.triggers,
+        conditions: data.conditions
       };
-    })(),
-    []
-  );
+    });
+  }, [isLoadingState]);
+
+  // Effect to handle initial state loading
+  useEffect(() => {
+    if (id && isLoadingState && editorState.workspace) {
+      setIsLoadingState(false);
+    }
+  }, [id, editorState.workspace, isLoadingState]);
+
+  // Reset loading state when switching automations
+  useEffect(() => {
+    setIsLoadingState(true);
+  }, [id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!workspaceState) {
+    if (!editorState.workspace) {
       setError('Please add some blocks to your automation');
       return;
     }
@@ -109,15 +127,16 @@ export const AutomationEditor: React.FC = () => {
       const automationData = {
         name,
         description: description || undefined,
-        triggers: workspaceState.triggers || [],
-        conditions: workspaceState.conditions || [],
-        actions: workspaceState.actions || [],
+        triggers: editorState.triggers,
+        workspace: editorState.workspace,
+        conditions: editorState.conditions,
       };
 
       if (isEditing) {
         const updateData: AutomationUpdateRequest = {
           ...automationData,
           enabled,
+          version,
         };
         await automationService.updateAutomation(id!, updateData);
         setSuccessMessage('Automation updated successfully');
@@ -164,8 +183,9 @@ export const AutomationEditor: React.FC = () => {
         >
           <div className="blockly-container">
             <BlocklyWorkspace
-              onWorkspaceChange={safeSetWorkspaceState}
-              initialState={workspaceState}
+              onWorkspaceChange={handleWorkspaceChange}
+              initialState={editorState.workspace}
+              key={`${id || 'new'}-${isLoadingState}`} // Force new instance when switching automations or loading state
             />
           </div>
 
@@ -198,17 +218,22 @@ export const AutomationEditor: React.FC = () => {
                     margin="normal"
                   />
                   {isEditing && (
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={enabled}
-                          onChange={(e) => setEnabled(e.target.checked)}
-                          color="primary"
-                        />
-                      }
-                      label="Enabled"
-                      sx={{ mt: 2 }}
-                    />
+                    <>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={enabled}
+                            onChange={(e) => setEnabled(e.target.checked)}
+                            color="primary"
+                          />
+                        }
+                        label="Enabled"
+                        sx={{ mt: 2 }}
+                      />
+                      <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+                        Version: {version}
+                      </Typography>
+                    </>
                   )}
                 </form>
               ) : (
@@ -221,7 +246,7 @@ export const AutomationEditor: React.FC = () => {
                     borderRadius: '4px',
                     margin: 0
                   }}>
-                    {JSON.stringify(workspaceState, null, 2)}
+                    {JSON.stringify(editorState, null, 2)}
                   </pre>
                 </Box>
               )}
