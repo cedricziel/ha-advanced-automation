@@ -1,0 +1,23 @@
+name: "Advanced Automation"
+version: "0.1.0"
+slug: "ha_advanced_automation"
+description: "Advanced automation builder with visual programming and scripting support"
+url: "https://github.com/yourusername/ha-advanced-automation"
+arch:
+  - armhf
+  - armv7
+  - aarch64
+  - amd64
+  - i386
+startup: application
+boot: auto
+ingress: true
+panel_icon: mdi:code-block-braces
+init: false
+options:
+  log_level: info
+schema:
+  log_level: list(trace|debug|info|warning|error|fatal)
+ports:
+  3001/tcp: null
+webui: http://[HOST]:[PORT:3001]
