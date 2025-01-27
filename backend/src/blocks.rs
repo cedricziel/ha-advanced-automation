@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 use tokio::sync::RwLock;
+use chrono::{DateTime, Utc};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockArgument {
@@ -26,6 +27,19 @@ pub struct BlockDefinition {
     pub tooltip: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub help_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub extensions: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mutator: Option<String>,
+    // User-defined block fields
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created: Option<DateTime<Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub modified: Option<DateTime<Utc>>,
 }
 
 pub struct BlockStore {
@@ -65,7 +79,16 @@ impl BlockStore {
         blocks.get(block_type).cloned()
     }
 
-    pub async fn create_or_update(&self, block: BlockDefinition) -> Result<(), std::io::Error> {
+    pub async fn create_or_update(&self, mut block: BlockDefinition) -> Result<(), std::io::Error> {
+        let now = Utc::now();
+
+        // Handle user-defined block metadata
+        if block.id.is_none() {
+            block.id = Some(uuid::Uuid::new_v4().to_string());
+            block.created = Some(now);
+        }
+        block.modified = Some(now);
+
         let mut blocks = self.blocks.write().await;
         blocks.insert(block.r#type.clone(), block);
         drop(blocks);
@@ -103,6 +126,12 @@ impl BlockStore {
                 colour: 230,
                 tooltip: "Triggers when an entity changes to a specific state".to_string(),
                 help_url: None,
+                extensions: Some(vec!["entity_state_extension".to_string()]),
+                mutator: None,
+                id: None,
+                category: Some("Triggers".to_string()),
+                created: None,
+                modified: None,
             },
             BlockDefinition {
                 r#type: "ha_time_trigger".to_string(),
@@ -120,6 +149,12 @@ impl BlockStore {
                 colour: 230,
                 tooltip: "Triggers at a specific time".to_string(),
                 help_url: None,
+                extensions: None,
+                mutator: None,
+                id: None,
+                category: Some("Triggers".to_string()),
+                created: None,
+                modified: None,
             },
             BlockDefinition {
                 r#type: "ha_state_condition".to_string(),
@@ -142,6 +177,12 @@ impl BlockStore {
                 colour: 120,
                 tooltip: "Check if an entity is in a specific state".to_string(),
                 help_url: None,
+                extensions: Some(vec!["entity_state_extension".to_string()]),
+                mutator: None,
+                id: None,
+                category: Some("Conditions".to_string()),
+                created: None,
+                modified: None,
             },
             BlockDefinition {
                 r#type: "ha_time_condition".to_string(),
@@ -164,6 +205,12 @@ impl BlockStore {
                 colour: 120,
                 tooltip: "Check if current time is within a specific range".to_string(),
                 help_url: None,
+                extensions: None,
+                mutator: None,
+                id: None,
+                category: Some("Conditions".to_string()),
+                created: None,
+                modified: None,
             },
             BlockDefinition {
                 r#type: "ha_call_service".to_string(),
@@ -186,6 +233,12 @@ impl BlockStore {
                 colour: 60,
                 tooltip: "Call a Home Assistant service".to_string(),
                 help_url: None,
+                extensions: Some(vec!["entity_state_extension".to_string()]),
+                mutator: None,
+                id: None,
+                category: Some("Actions".to_string()),
+                created: None,
+                modified: None,
             },
             BlockDefinition {
                 r#type: "ha_set_state".to_string(),
@@ -208,6 +261,12 @@ impl BlockStore {
                 colour: 60,
                 tooltip: "Set an entity to a specific state".to_string(),
                 help_url: None,
+                extensions: Some(vec!["entity_state_extension".to_string()]),
+                mutator: None,
+                id: None,
+                category: Some("Actions".to_string()),
+                created: None,
+                modified: None,
             },
         ];
 

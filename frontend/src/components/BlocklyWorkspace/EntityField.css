@@ -6,81 +6,59 @@
     max-height: 300px;
     min-width: 300px;
     overflow-y: auto;
-    z-index: 10000;
+    z-index: 1000;
 }
 
 .blockly-entity-item {
-    display: flex;
-    align-items: flex-start;
-    padding: 8px 12px;
+    align-items: center;
     cursor: pointer;
-    border-bottom: 1px solid #eee;
-}
-
-.blockly-entity-item:last-child {
-    border-bottom: none;
+    display: flex;
+    padding: 8px 12px;
+    transition: background-color 0.2s;
 }
 
 .blockly-entity-item:hover,
 .blockly-entity-item.selected {
-    background-color: #f5f5f5;
+    background-color: #f0f0f0;
 }
 
 .blockly-entity-item .icon {
+    font-size: 1.2em;
     margin-right: 8px;
-    font-size: 16px;
     min-width: 24px;
     text-align: center;
 }
 
 .blockly-entity-item .entity-info {
-    flex: 1;
-    min-width: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 .blockly-entity-item .text {
-    font-size: 14px;
     color: #333;
-    margin-bottom: 2px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size: 14px;
 }
 
 .blockly-entity-item .entity-id {
-    font-size: 12px;
     color: #666;
+    font-size: 12px;
     margin-bottom: 2px;
-    font-family: monospace;
-    display: block;
 }
 
 .blockly-entity-item .entity-details {
+    color: #666;
     font-size: 12px;
-    color: #666;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
-.blockly-entity-no-results {
-    padding: 12px;
-    text-align: center;
-    color: #666;
-    font-style: italic;
+.blockly-entity-item .highlight {
+    background-color: #ffeb3b;
+    font-weight: bold;
 }
 
+.blockly-entity-no-results,
 .blockly-entity-more {
+    color: #666;
+    font-size: 12px;
     padding: 8px 12px;
     text-align: center;
-    color: #666;
-    font-size: 12px;
-    background-color: #f9f9f9;
-    border-top: 1px solid #eee;
-}
-
-.highlight {
-    background-color: #fff3cd;
-    padding: 0 2px;
-    border-radius: 2px;
 }

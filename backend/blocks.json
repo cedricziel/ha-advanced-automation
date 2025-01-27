@@ -1,4 +1,47 @@
 {
+  "ha_state_condition": {
+    "type": "ha_state_condition",
+    "message0": "Entity %1 is %2",
+    "args0": [
+      {
+        "type": "field_entity",
+        "name": "ENTITY_ID",
+        "default": "entity.id"
+      },
+      {
+        "type": "field_input",
+        "name": "STATE",
+        "default": "state"
+      }
+    ],
+    "output": "Boolean",
+    "colour": 120,
+    "tooltip": "Check if an entity is in a specific state",
+    "extensions": [
+      "entity_state_extension"
+    ],
+    "category": "Conditions"
+  },
+  "ha_time_condition": {
+    "type": "ha_time_condition",
+    "message0": "Time is between %1 and %2",
+    "args0": [
+      {
+        "type": "field_input",
+        "name": "START_TIME",
+        "default": "00:00"
+      },
+      {
+        "type": "field_input",
+        "name": "END_TIME",
+        "default": "23:59"
+      }
+    ],
+    "output": "Boolean",
+    "colour": 120,
+    "tooltip": "Check if current time is within a specific range",
+    "category": "Conditions"
+  },
   "ha_set_state": {
     "type": "ha_set_state",
     "message0": "Set %1 to %2",
@@ -17,46 +60,11 @@
     "previous_statement": true,
     "next_statement": true,
     "colour": 60,
-    "tooltip": "Set an entity to a specific state"
-  },
-  "ha_call_service": {
-    "type": "ha_call_service",
-    "message0": "Call service %1 with entity %2",
-    "args0": [
-      {
-        "type": "field_input",
-        "name": "SERVICE",
-        "default": "domain.service"
-      },
-      {
-        "type": "field_entity",
-        "name": "ENTITY_ID",
-        "default": "entity.id"
-      }
+    "tooltip": "Set an entity to a specific state",
+    "extensions": [
+      "entity_state_extension"
     ],
-    "previous_statement": true,
-    "next_statement": true,
-    "colour": 60,
-    "tooltip": "Call a Home Assistant service"
-  },
-  "ha_state_condition": {
-    "type": "ha_state_condition",
-    "message0": "Entity %1 is %2",
-    "args0": [
-      {
-        "type": "field_entity",
-        "name": "ENTITY_ID",
-        "default": "entity.id"
-      },
-      {
-        "type": "field_input",
-        "name": "STATE",
-        "default": "state"
-      }
-    ],
-    "output": "Boolean",
-    "colour": 120,
-    "tooltip": "Check if an entity is in a specific state"
+    "category": "Actions"
   },
   "ha_state_trigger": {
     "type": "ha_state_trigger",
@@ -76,26 +84,11 @@
     "previous_statement": true,
     "next_statement": true,
     "colour": 230,
-    "tooltip": "Triggers when an entity changes to a specific state"
-  },
-  "ha_time_condition": {
-    "type": "ha_time_condition",
-    "message0": "Time is between %1 and %2",
-    "args0": [
-      {
-        "type": "field_input",
-        "name": "START_TIME",
-        "default": "00:00"
-      },
-      {
-        "type": "field_input",
-        "name": "END_TIME",
-        "default": "23:59"
-      }
+    "tooltip": "Triggers when an entity changes to a specific state",
+    "extensions": [
+      "entity_state_extension"
     ],
-    "output": "Boolean",
-    "colour": 120,
-    "tooltip": "Check if current time is within a specific range"
+    "category": "Triggers"
   },
   "ha_time_trigger": {
     "type": "ha_time_trigger",
@@ -110,6 +103,31 @@
     "previous_statement": true,
     "next_statement": true,
     "colour": 230,
-    "tooltip": "Triggers at a specific time"
+    "tooltip": "Triggers at a specific time",
+    "category": "Triggers"
+  },
+  "ha_call_service": {
+    "type": "ha_call_service",
+    "message0": "Call service %1 with entity %2",
+    "args0": [
+      {
+        "type": "field_input",
+        "name": "SERVICE",
+        "default": "domain.service"
+      },
+      {
+        "type": "field_entity",
+        "name": "ENTITY_ID",
+        "default": "entity.id"
+      }
+    ],
+    "previous_statement": true,
+    "next_statement": true,
+    "colour": 60,
+    "tooltip": "Call a Home Assistant service",
+    "extensions": [
+      "entity_state_extension"
+    ],
+    "category": "Actions"
   }
 }

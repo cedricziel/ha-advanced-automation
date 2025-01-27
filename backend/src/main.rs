@@ -83,8 +83,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/automations/{id}/toggle", post(toggle_automation))
         .route("/api/blockly/toolbox", get(get_blockly_toolbox))
         .route("/api/blocks", get(list_blocks))
-        .route("/api/blocks", post(create_or_update_block))
-        .route("/api/blocks/{type}", delete(delete_block))
+        .route("/api/blocks/user", get(list_user_blocks))
+        .route("/api/blocks/user", post(create_user_block))
+        .route("/api/blocks/user/{id}", put(update_user_block))
+        .route("/api/blocks/user/{id}", delete(delete_user_block))
         .with_state(state)
         .layer(cors)
         .fallback_service(ServeDir::new("static").fallback(
@@ -205,12 +207,14 @@ async fn get_blockly_toolbox(
     axum::extract::State(state): axum::extract::State<Arc<AppState>>,
 ) -> impl axum::response::IntoResponse {
     let blocks = state.block_store.list().await;
-    let toolbox = blockly::get_default_toolbox();
+    let toolbox = blockly::create_default_toolbox(&blocks);
 
-    let json = serde_json::to_string_pretty(&json!({
-        "toolbox": toolbox,
-        "blocks": blocks
-    })).unwrap();
+    let response = blockly::ToolboxResponse {
+        toolbox,
+        blocks,
+    };
+
+    let json = serde_json::to_string_pretty(&response).unwrap();
 
     (
         axum::http::StatusCode::OK,
@@ -242,6 +246,109 @@ async fn delete_block(
         Ok(true) => Ok(()),
         Ok(false) => Err((axum::http::StatusCode::NOT_FOUND, "Block not found".to_string())),
         Err(e) => Err((axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+    }
+}
+
+async fn list_user_blocks(
+    axum::extract::State(state): axum::extract::State<Arc<AppState>>,
+) -> Json<Vec<blocks::BlockDefinition>> {
+    let blocks = state.block_store.list().await;
+    let user_blocks: Vec<_> = blocks.into_iter()
+        .filter(|block| block.id.is_some())
+        .collect();
+    Json(user_blocks)
+}
+
+async fn create_user_block(
+    axum::extract::State(state): axum::extract::State<Arc<AppState>>,
+    Json(mut block): Json<blocks::BlockDefinition>,
+) -> Result<Json<blocks::BlockDefinition>, (axum::http::StatusCode, String)> {
+    // Ensure this is marked as a user block
+    if block.id.is_some() {
+        return Err((
+            axum::http::StatusCode::BAD_REQUEST,
+            "Block ID should not be provided for new blocks".to_string(),
+        ));
+    }
+
+    let block_type = block.r#type.clone();
+    match state.block_store.create_or_update(block).await {
+        Ok(()) => {
+            let created_block = state
+                .block_store
+                .get(&block_type)
+                .await
+                .ok_or((
+                    axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                    "Failed to retrieve created block".to_string(),
+                ))?;
+            Ok(Json(created_block))
+        }
+        Err(e) => Err((axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
+    }
+}
+
+async fn update_user_block(
+    axum::extract::State(state): axum::extract::State<Arc<AppState>>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+    Json(mut block): Json<blocks::BlockDefinition>,
+) -> Result<Json<blocks::BlockDefinition>, (axum::http::StatusCode, String)> {
+    // Verify block exists and is a user block
+    let block_type = block.r#type.clone();
+    let existing = state
+        .block_store
+        .get(&block_type)
+        .await
+        .ok_or((
+            axum::http::StatusCode::NOT_FOUND,
+            "Block not found".to_string(),
+        ))?;
+
+    if existing.id.as_ref() != Some(&id) {
+        return Err((
+            axum::http::StatusCode::BAD_REQUEST,
+            "Block ID mismatch".to_string(),
+        ));
+    }
+
+    // Preserve the original ID and created timestamp
+    block.id = existing.id;
+    block.created = existing.created;
+
+    match state.block_store.create_or_update(block).await {
+        Ok(()) => {
+            let updated_block = state
+                .block_store
+                .get(&block_type)
+                .await
+                .ok_or((
+                    axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                    "Failed to retrieve updated block".to_string(),
+                ))?;
+            Ok(Json(updated_block))
+        }
+        Err(e) => Err((axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
+    }
+}
+
+async fn delete_user_block(
+    axum::extract::State(state): axum::extract::State<Arc<AppState>>,
+    axum::extract::Path(id): axum::extract::Path<String>,
+) -> Result<(), (axum::http::StatusCode, String)> {
+    // First get the block to verify it's a user block
+    let blocks = state.block_store.list().await;
+    let block = blocks
+        .iter()
+        .find(|b| b.id.as_ref() == Some(&id))
+        .ok_or((
+            axum::http::StatusCode::NOT_FOUND,
+            "Block not found".to_string(),
+        ))?;
+
+    match state.block_store.delete(&block.r#type).await {
+        Ok(true) => Ok(()),
+        Ok(false) => Err((axum::http::StatusCode::NOT_FOUND, "Block not found".to_string())),
+        Err(e) => Err((axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
     }
 }
 

@@ -4,36 +4,37 @@ import { BlocklyWorkspace as ReactBlocklyWorkspace } from 'react-blockly';
 import * as Blockly from 'blockly';
 import { initBlockGenerators, BlockExtractor } from './generators';
 import { registerEntityField } from './EntityField';
+import { registerEntityStateExtension } from './EntityStateExtension';
 import { haClient } from '../../services/haClient';
 import { blocklyService } from '../../services/blocklyService';
-import { BlocklyToolbox, BlockDefinition } from '../../types/blockly';
+import { BlocklyToolbox, BlockDefinition, STANDARD_CATEGORY_STYLES } from '../../types/blockly';
 import { TriggerDefinition, ConditionDefinition } from '../../types/automation';
 
-function createEntityField(defaultValue: string) {
-  const EntityFieldClass = Blockly.registry.getClass('field', 'field_entity');
-  return EntityFieldClass ? new EntityFieldClass(defaultValue) : new Blockly.FieldTextInput(defaultValue);
-}
-
-interface ProcessedBlockArg {
-  type: string;
-  name: string;
-  text: string;
-  customField?: boolean;
-}
-
-interface ProcessedBlockDefinition extends Omit<BlockDefinition, 'args0'> {
-  args0: ProcessedBlockArg[];
-}
+// Register category styles
+Object.entries(STANDARD_CATEGORY_STYLES).forEach(([name, style]) => {
+  Blockly.registry.register(
+    'theme_components',
+    name,
+    style
+  );
+});
 
 interface BlocklyField {
   name: string;
   sourceBlock_: any;
-  init: () => void;
-  setSourceBlock: (block: any) => void;
+  init(): void;
+  setSourceBlock(block: any): void;
+  setValue(value: string): void;
 }
 
 interface BlocklyInput {
   fieldRow: BlocklyField[];
+}
+
+function createEntityField(defaultValue: string): BlocklyField {
+  const EntityFieldClass = Blockly.registry.getClass('field', 'field_entity');
+  const field = EntityFieldClass ? new EntityFieldClass(defaultValue) : new Blockly.FieldTextInput(defaultValue);
+  return field as BlocklyField;
 }
 
 function registerBlocks(blocks: BlockDefinition[]) {
@@ -42,41 +43,39 @@ function registerBlocks(blocks: BlockDefinition[]) {
     delete Blockly.Blocks[block.type];
   });
 
-  const blockDefinitions = blocks.map(block => ({
+  // Register the blocks
+  Blockly.defineBlocksWithJsonArray(blocks.map(block => ({
     ...block,
-    args0: block.args0.map(arg => {
+    args0: block.args0?.map(arg => {
       if (arg.type === 'field_entity') {
         return {
           type: 'field_input', // We'll replace this with our custom field
           name: arg.name,
-          text: arg.default,
+          text: arg.default || '',
           customField: true, // Mark for post-processing
         };
       }
       return {
         type: arg.type,
         name: arg.name,
-        text: arg.default,
+        text: arg.default || '',
       };
-    }),
-  })) as ProcessedBlockDefinition[];
-
-  // Register the blocks
-  Blockly.defineBlocksWithJsonArray(blockDefinitions);
+    }) || [],
+  })));
 
   // Post-process to add custom entity fields
-  blockDefinitions.forEach(block => {
+  blocks.forEach(block => {
     const originalInit = Blockly.Blocks[block.type].init;
     Blockly.Blocks[block.type].init = function(this: any) {
       originalInit.call(this);
 
       // Replace marked fields with entity fields
-      block.args0.forEach(arg => {
+      block.args0?.forEach(arg => {
         if (arg.type === 'field_entity') {
           const input = this.inputList[0] as BlocklyInput;
-          const fieldIndex = input.fieldRow.findIndex(f => f.name === arg.name);
+          const fieldIndex = input.fieldRow.findIndex((f: BlocklyField) => f.name === arg.name);
           if (fieldIndex !== -1) {
-            const entityField = createEntityField(arg.text) as BlocklyField;
+            const entityField = createEntityField(arg.default || '');
             input.fieldRow[fieldIndex] = entityField;
             entityField.setSourceBlock(this);
             entityField.init();
@@ -107,19 +106,39 @@ const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = memo(({ onWorkspaceCha
   const [toolboxConfig, setToolboxConfig] = useState<BlocklyToolbox | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch toolbox configuration and initialize blocks
+  // Initialize workspace
   useEffect(() => {
     const initialize = async () => {
       try {
         // Initialize generators and custom fields
         extractorRef.current = initBlockGenerators();
         registerEntityField();
+        registerEntityStateExtension();
+
+        // Initialize Blockly's built-in blocks
+        Object.keys(Blockly.Blocks).forEach(key => {
+          if (key.startsWith('controls_') ||
+              key.startsWith('logic_') ||
+              key.startsWith('math_') ||
+              key.startsWith('text_') ||
+              key.startsWith('lists_') ||
+              key.startsWith('colour_')) {
+            const block = Blockly.Blocks[key];
+            if (typeof block.init === 'function') {
+              try {
+                block.init();
+              } catch (e) {
+                console.warn(`Failed to initialize block ${key}:`, e);
+              }
+            }
+          }
+        });
 
         // Fetch toolbox config and blocks
         const response = await blocklyService.getToolboxConfig();
         setToolboxConfig(response.toolbox);
 
-        // Register blocks
+        // Register custom blocks
         registerBlocks(response.blocks);
 
         setError(null);
