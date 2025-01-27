@@ -1,4 +1,4 @@
-const mockWorkspace = {
+export const mockWorkspace = {
   clear: jest.fn(),
   dispose: jest.fn(),
   addChangeListener: jest.fn((fn) => fn),
@@ -27,18 +27,12 @@ const mockWorkspace = {
   workspace: null,
 };
 
-const mockSerialization = {
+export const mockSerialization = {
   workspaces: {
     save: jest.fn().mockReturnValue({}),
     load: jest.fn(),
   },
 };
 
-const mockInject = jest.fn().mockReturnValue(mockWorkspace);
-
-module.exports = {
-  inject: mockInject,
-  serialization: mockSerialization,
-  WorkspaceSvg: jest.fn().mockImplementation(() => mockWorkspace),
-  mockWorkspace, // Export for test access
-};
+export const inject = jest.fn().mockReturnValue(mockWorkspace);
+export const WorkspaceSvg = jest.fn().mockImplementation(() => mockWorkspace);
