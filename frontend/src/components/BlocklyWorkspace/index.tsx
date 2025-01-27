@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState, memo } from 'react';
 import * as Blockly from 'blockly';
 import './BlocklyWorkspace.css';
 import { BlocklyPlugin, WorkspaceState } from '../../types/blockly';
+import { WorkspaceChangeData } from '../../types/automation';
 import { BlocklyPluginProvider } from './BlocklyPluginProvider';
 import { createWorkspaceConfig, WorkspaceConfigOptions } from './workspaceConfig';
 
@@ -11,6 +12,7 @@ interface BlocklyWorkspaceProps {
   value?: WorkspaceState;
   onChange?: (state: WorkspaceState) => void;
   onError?: (error: Error) => void;
+  onWorkspaceChange?: (data: WorkspaceChangeData) => void;
 
   // Configuration
   workspaceConfiguration?: WorkspaceConfigOptions;
@@ -33,6 +35,7 @@ const BlocklyWorkspaceCore: React.FC<BlocklyWorkspaceProps> = memo(({
   value,
   onChange,
   onError,
+  onWorkspaceChange,
   workspaceConfiguration = {},
   toolbox,
   theme,
@@ -89,7 +92,7 @@ const BlocklyWorkspaceCore: React.FC<BlocklyWorkspaceProps> = memo(({
       console.error('Error initializing workspace:', error);
       onError?.(error instanceof Error ? error : new Error(String(error)));
     }
-  }, [toolbox, workspaceConfiguration, readOnly, theme, initialState, value]);
+  }, [toolbox, workspaceConfiguration, readOnly, theme, initialState, value, onError]);
 
   // Handle controlled state updates
   useEffect(() => {
@@ -108,7 +111,7 @@ const BlocklyWorkspaceCore: React.FC<BlocklyWorkspaceProps> = memo(({
       console.error('Error updating workspace state:', error);
       onError?.(error instanceof Error ? error : new Error(String(error)));
     }
-  }, [value, isInitialized]);
+  }, [value, isInitialized, onError]);
 
   // Change listener
   useEffect(() => {
@@ -117,15 +120,25 @@ const BlocklyWorkspaceCore: React.FC<BlocklyWorkspaceProps> = memo(({
     const workspace = workspaceRef.current;
     const changeListener = () => {
       try {
+        const blocks = Blockly.serialization.workspaces.save(workspace);
+        const variables = workspace.getAllVariables().map(v => ({
+          id: v.getId(),
+          name: v.name,
+          type: v.type,
+        }));
+
         const state: WorkspaceState = {
-          blocks: Blockly.serialization.workspaces.save(workspace),
-          variables: workspace.getAllVariables().map(v => ({
-            id: v.getId(),
-            name: v.name,
-            type: v.type,
-          })),
+          blocks,
+          variables,
         };
         onChange?.(state);
+
+        // Call onWorkspaceChange with the workspace data
+        onWorkspaceChange?.({
+          workspace: blocks,
+          triggers: [], // These would need to be extracted from the workspace
+          conditions: [], // These would need to be extracted from the workspace
+        });
       } catch (error) {
         console.error('Error handling workspace change:', error);
         onError?.(error instanceof Error ? error : new Error(String(error)));
@@ -134,7 +147,7 @@ const BlocklyWorkspaceCore: React.FC<BlocklyWorkspaceProps> = memo(({
 
     workspace.addChangeListener(changeListener);
     return () => workspace.removeChangeListener(changeListener);
-  }, [isInitialized, onChange]);
+  }, [isInitialized, onChange, onError, onWorkspaceChange]);
 
   // Auto-save functionality
   useEffect(() => {
@@ -145,15 +158,25 @@ const BlocklyWorkspaceCore: React.FC<BlocklyWorkspaceProps> = memo(({
         const workspace = workspaceRef.current;
         if (!workspace) return;
 
+        const blocks = Blockly.serialization.workspaces.save(workspace);
+        const variables = workspace.getAllVariables().map(v => ({
+          id: v.getId(),
+          name: v.name,
+          type: v.type,
+        }));
+
         const state: WorkspaceState = {
-          blocks: Blockly.serialization.workspaces.save(workspace),
-          variables: workspace.getAllVariables().map(v => ({
-            id: v.getId(),
-            name: v.name,
-            type: v.type,
-          })),
+          blocks,
+          variables,
         };
         onChange?.(state);
+
+        // Call onWorkspaceChange with the workspace data
+        onWorkspaceChange?.({
+          workspace: blocks,
+          triggers: [], // These would need to be extracted from the workspace
+          conditions: [], // These would need to be extracted from the workspace
+        });
       } catch (error) {
         console.error('Error during auto-save:', error);
         onError?.(error instanceof Error ? error : new Error(String(error)));
@@ -161,7 +184,7 @@ const BlocklyWorkspaceCore: React.FC<BlocklyWorkspaceProps> = memo(({
     }, autoSaveInterval);
 
     return () => clearInterval(interval);
-  }, [isInitialized, autoSaveInterval, onChange]);
+  }, [isInitialized, autoSaveInterval, onChange, onWorkspaceChange, onError]);
 
   return (
     <div
