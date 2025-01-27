@@ -33,9 +33,15 @@ export const BlocklyPluginProvider: React.FC<BlocklyPluginProviderProps> = ({
   const pluginsRef = useRef<Map<string, BlocklyPlugin>>(new Map());
   const pluginStatesRef = useRef<Map<string, any>>(new Map());
 
-  // Initialize plugins when workspace is available
+    // Initialize plugins when workspace is available
+  // We're safely capturing ref values in the cleanup function
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!workspace) return;
+
+    // Capture ref values at the start of the effect
+    const pluginsMap = pluginsRef.current;
+    const pluginStatesMap = pluginStatesRef.current;
 
     // Sort plugins by dependencies
     const sortedPlugins = sortPluginsByDependencies(plugins);
@@ -44,21 +50,21 @@ export const BlocklyPluginProvider: React.FC<BlocklyPluginProviderProps> = ({
     sortedPlugins.forEach(plugin => {
       try {
         plugin.init(workspace);
-        pluginsRef.current.set(plugin.id, plugin);
+        pluginsMap.set(plugin.id, plugin);
 
         // Initialize plugin state if available
         if (plugin.getState) {
           const state = plugin.getState(workspace);
-          pluginStatesRef.current.set(plugin.id, state);
+          pluginStatesMap.set(plugin.id, state);
         }
       } catch (error) {
         console.error(`Failed to initialize plugin ${plugin.id}:`, error);
       }
     });
 
-    // Cleanup function
-    return () => {
-      Array.from(pluginsRef.current.values()).forEach(plugin => {
+    // Create cleanup function with captured refs
+    const cleanupPlugins = (plugins: Map<string, BlocklyPlugin>, states: Map<string, any>) => {
+      Array.from(plugins.values()).forEach(plugin => {
         try {
           if (plugin.cleanup) {
             plugin.cleanup();
@@ -67,9 +73,12 @@ export const BlocklyPluginProvider: React.FC<BlocklyPluginProviderProps> = ({
           console.error(`Failed to cleanup plugin ${plugin.id}:`, error);
         }
       });
-      pluginsRef.current.clear();
-      pluginStatesRef.current.clear();
+      plugins.clear();
+      states.clear();
     };
+
+    // Return cleanup function with captured refs
+    return () => cleanupPlugins(pluginsMap, pluginStatesMap);
   }, [workspace, plugins]);
 
   const sortPluginsByDependencies = (plugins: BlocklyPlugin[]): BlocklyPlugin[] => {
@@ -104,31 +113,39 @@ export const BlocklyPluginProvider: React.FC<BlocklyPluginProviderProps> = ({
       if (!workspace) {
         throw new Error('Cannot register plugin: workspace not available');
       }
-      if (pluginsRef.current.has(plugin.id)) {
+      const pluginsMap = pluginsRef.current;
+      const pluginStatesMap = pluginStatesRef.current;
+
+      if (pluginsMap.has(plugin.id)) {
         throw new Error(`Plugin ${plugin.id} is already registered`);
       }
       plugin.init(workspace);
-      pluginsRef.current.set(plugin.id, plugin);
+      pluginsMap.set(plugin.id, plugin);
       if (plugin.getState) {
-        pluginStatesRef.current.set(plugin.id, plugin.getState(workspace));
+        pluginStatesMap.set(plugin.id, plugin.getState(workspace));
       }
     },
 
     unregisterPlugin: (pluginId: string) => {
-      const plugin = pluginsRef.current.get(pluginId);
+      const pluginsMap = pluginsRef.current;
+      const pluginStatesMap = pluginStatesRef.current;
+      const plugin = pluginsMap.get(pluginId);
+
       if (plugin?.cleanup) {
         plugin.cleanup();
       }
-      pluginsRef.current.delete(pluginId);
-      pluginStatesRef.current.delete(pluginId);
+      pluginsMap.delete(pluginId);
+      pluginStatesMap.delete(pluginId);
     },
 
     getPlugin: (pluginId: string) => {
-      return pluginsRef.current.get(pluginId);
+      const pluginsMap = pluginsRef.current;
+      return pluginsMap.get(pluginId);
     },
 
     getPluginState: (pluginId: string) => {
-      return pluginStatesRef.current.get(pluginId);
+      const pluginStatesMap = pluginStatesRef.current;
+      return pluginStatesMap.get(pluginId);
     },
   };
 
