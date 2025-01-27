@@ -1,258 +1,186 @@
-import React, { useRef, useEffect, useState, useCallback, memo } from 'react';
-import './BlocklyWorkspace.css';
-import { BlocklyWorkspace as ReactBlocklyWorkspace } from 'react-blockly';
+import React, { useRef, useEffect, useState, memo } from 'react';
 import * as Blockly from 'blockly';
-import { initBlockGenerators, BlockExtractor } from './generators';
-import { registerEntityField } from './EntityField';
-import { registerEntityStateExtension } from './EntityStateExtension';
-import { haClient } from '../../services/haClient';
-import { blocklyService } from '../../services/blocklyService';
-import { BlocklyToolbox, BlockDefinition, STANDARD_CATEGORY_STYLES } from '../../types/blockly';
-import { TriggerDefinition, ConditionDefinition } from '../../types/automation';
-
-// Register category styles
-Object.entries(STANDARD_CATEGORY_STYLES).forEach(([name, style]) => {
-  Blockly.registry.register(
-    'theme_components',
-    name,
-    style
-  );
-});
-
-interface BlocklyField {
-  name: string;
-  sourceBlock_: any;
-  init(): void;
-  setSourceBlock(block: any): void;
-  setValue(value: string): void;
-}
-
-interface BlocklyInput {
-  fieldRow: BlocklyField[];
-}
-
-function createEntityField(defaultValue: string): BlocklyField {
-  const EntityFieldClass = Blockly.registry.getClass('field', 'field_entity');
-  const field = EntityFieldClass ? new EntityFieldClass(defaultValue) : new Blockly.FieldTextInput(defaultValue);
-  return field as BlocklyField;
-}
-
-function registerBlocks(blocks: BlockDefinition[]) {
-  // Clear any existing block definitions
-  blocks.forEach(block => {
-    delete Blockly.Blocks[block.type];
-  });
-
-  // Register the blocks
-  Blockly.defineBlocksWithJsonArray(blocks.map(block => ({
-    ...block,
-    args0: block.args0?.map(arg => {
-      if (arg.type === 'field_entity') {
-        return {
-          type: 'field_input', // We'll replace this with our custom field
-          name: arg.name,
-          text: arg.default || '',
-          customField: true, // Mark for post-processing
-        };
-      }
-      return {
-        type: arg.type,
-        name: arg.name,
-        text: arg.default || '',
-      };
-    }) || [],
-  })));
-
-  // Post-process to add custom entity fields
-  blocks.forEach(block => {
-    const originalInit = Blockly.Blocks[block.type].init;
-    Blockly.Blocks[block.type].init = function(this: any) {
-      originalInit.call(this);
-
-      // Replace marked fields with entity fields
-      block.args0?.forEach(arg => {
-        if (arg.type === 'field_entity') {
-          const input = this.inputList[0] as BlocklyInput;
-          const fieldIndex = input.fieldRow.findIndex((f: BlocklyField) => f.name === arg.name);
-          if (fieldIndex !== -1) {
-            const entityField = createEntityField(arg.default || '');
-            input.fieldRow[fieldIndex] = entityField;
-            entityField.setSourceBlock(this);
-            entityField.init();
-            entityField.name = arg.name;
-          }
-        }
-      });
-    };
-  });
-}
-
-interface WorkspaceChangeData {
-  workspace: any; // Blockly workspace serialization
-  triggers: TriggerDefinition[];
-  conditions: ConditionDefinition[];
-}
+import './BlocklyWorkspace.css';
+import { BlocklyPlugin, WorkspaceState } from '../../types/blockly';
+import { BlocklyPluginProvider } from './BlocklyPluginProvider';
+import { createWorkspaceConfig, WorkspaceConfigOptions } from './workspaceConfig';
 
 interface BlocklyWorkspaceProps {
-  onWorkspaceChange?: (data: WorkspaceChangeData) => void;
-  initialState?: any;
+  // Core props
+  initialState?: WorkspaceState;
+  value?: WorkspaceState;
+  onChange?: (state: WorkspaceState) => void;
+  onError?: (error: Error) => void;
+
+  // Configuration
+  workspaceConfiguration?: WorkspaceConfigOptions;
+  toolbox?: any;
+  theme?: Blockly.Theme;
+  readOnly?: boolean;
+
+  // Plugin support
+  plugins?: BlocklyPlugin[];
+
+  // Auto-save
+  autoSaveInterval?: number;
+
+  // Children for extensibility
+  children?: React.ReactNode;
 }
 
-const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = memo(({ onWorkspaceChange, initialState }) => {
+const BlocklyWorkspaceCore: React.FC<BlocklyWorkspaceProps> = memo(({
+  initialState,
+  value,
+  onChange,
+  onError,
+  workspaceConfiguration = {},
+  toolbox,
+  theme,
+  readOnly = false,
+  autoSaveInterval = 0,
+  children
+}) => {
   const workspaceRef = useRef<Blockly.Workspace | null>(null);
-  const extractorRef = useRef<BlockExtractor | null>(null);
-  const hasLoadedStateRef = useRef(false);
-  const isUnmountedRef = useRef(false);
-  const [toolboxConfig, setToolboxConfig] = useState<BlocklyToolbox | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  // Initialize workspace
+  // Workspace initialization
   useEffect(() => {
-    const initialize = async () => {
-      try {
-        // Initialize generators and custom fields
-        extractorRef.current = initBlockGenerators();
-        registerEntityField();
-        registerEntityStateExtension();
-
-        // Initialize Blockly's built-in blocks
-        Object.keys(Blockly.Blocks).forEach(key => {
-          if (key.startsWith('controls_') ||
-              key.startsWith('logic_') ||
-              key.startsWith('math_') ||
-              key.startsWith('text_') ||
-              key.startsWith('lists_') ||
-              key.startsWith('colour_')) {
-            const block = Blockly.Blocks[key];
-            if (typeof block.init === 'function') {
-              try {
-                block.init();
-              } catch (e) {
-                console.warn(`Failed to initialize block ${key}:`, e);
-              }
-            }
-          }
-        });
-
-        // Fetch toolbox config and blocks
-        const response = await blocklyService.getToolboxConfig();
-        setToolboxConfig(response.toolbox);
-
-        // Register custom blocks
-        registerBlocks(response.blocks);
-
-        setError(null);
-      } catch (err) {
-        console.error('Error initializing workspace:', err);
-        setError('Failed to initialize workspace');
-      }
-    };
-    initialize();
-  }, []);
-
-  // Connect to Home Assistant
-  useEffect(() => {
-    haClient.connect();
-    const unsubscribe = haClient.onStateChanged((entityId, state) => {
-      // Keep subscription active to ensure state updates are received
-      if (!isUnmountedRef.current) {
-        // State changes will update the EntityField dropdowns
-      }
-    });
-    return () => {
-      isUnmountedRef.current = true;
-      unsubscribe();
-    };
-  }, []);
-
-  // Handle workspace changes
-  const handleWorkspaceChange = useCallback((workspace: Blockly.Workspace) => {
-    if (!workspace || isUnmountedRef.current || !extractorRef.current) return;
-
-    // Don't trigger changes while loading initial state
-    if (!hasLoadedStateRef.current && initialState) return;
+    if (!containerRef.current || !toolbox) return;
 
     try {
-      const state = Blockly.serialization.workspaces.save(workspace);
-      const triggers = extractorRef.current.extractTriggers(workspace);
-      const conditions = extractorRef.current.extractConditions(workspace);
+      const config = createWorkspaceConfig(toolbox, {
+        ...workspaceConfiguration,
+        readOnly,
+        theme,
+      });
 
-      onWorkspaceChange?.({
-        workspace: state,
-        triggers,
-        conditions
+      const workspace = Blockly.inject(containerRef.current, config);
+      workspaceRef.current = workspace;
+      setIsInitialized(true);
+
+      // Load initial state
+      if (initialState && !value) {
+        try {
+          if (workspace) {
+            workspace.clear();
+            Blockly.serialization.workspaces.load(initialState.blocks, workspace);
+
+            // Load variables
+            initialState.variables?.forEach(variable => {
+              workspace.createVariable(variable.name, variable.type, variable.id);
+            });
+          }
+        } catch (error) {
+          console.error('Error loading initial state:', error);
+          onError?.(error instanceof Error ? error : new Error(String(error)));
+        }
+      }
+
+      // Cleanup
+      return () => {
+        if (workspaceRef.current) {
+          workspaceRef.current.dispose();
+          workspaceRef.current = null;
+          setIsInitialized(false);
+        }
+      };
+    } catch (error) {
+      console.error('Error initializing workspace:', error);
+      onError?.(error instanceof Error ? error : new Error(String(error)));
+    }
+  }, [toolbox, workspaceConfiguration, readOnly, theme, initialState, value]);
+
+  // Handle controlled state updates
+  useEffect(() => {
+    if (!workspaceRef.current || !value || !isInitialized) return;
+
+    try {
+      const workspace = workspaceRef.current;
+      workspace.clear();
+      Blockly.serialization.workspaces.load(value.blocks, workspace);
+
+      // Load variables
+      value.variables?.forEach(variable => {
+        workspace.createVariable(variable.name, variable.type, variable.id);
       });
     } catch (error) {
-      console.error('Error generating automation:', error);
+      console.error('Error updating workspace state:', error);
+      onError?.(error instanceof Error ? error : new Error(String(error)));
     }
-  }, [onWorkspaceChange, initialState, hasLoadedStateRef]);
+  }, [value, isInitialized]);
 
-  // Handle workspace initialization
-  const onInject = useCallback((workspace: Blockly.Workspace) => {
-    workspaceRef.current = workspace;
-
-    // Only attempt to load state if we have both initialState and toolbox
-    if (initialState && toolboxConfig) {
-      try {
-        workspace.clear();
-        Blockly.serialization.workspaces.load(initialState, workspace);
-        hasLoadedStateRef.current = true;
-      } catch (error) {
-        console.error('Error loading initial workspace state:', error);
-      }
-    }
-  }, [initialState, toolboxConfig]);
-
-  // Cleanup effect
+  // Change listener
   useEffect(() => {
-    return () => {
-      isUnmountedRef.current = true;
-      workspaceRef.current = null;
-      hasLoadedStateRef.current = false;
+    if (!workspaceRef.current || !isInitialized) return;
+
+    const workspace = workspaceRef.current;
+    const changeListener = () => {
+      try {
+        const state: WorkspaceState = {
+          blocks: Blockly.serialization.workspaces.save(workspace),
+          variables: workspace.getAllVariables().map(v => ({
+            id: v.getId(),
+            name: v.name,
+            type: v.type,
+          })),
+        };
+        onChange?.(state);
+      } catch (error) {
+        console.error('Error handling workspace change:', error);
+        onError?.(error instanceof Error ? error : new Error(String(error)));
+      }
     };
-  }, []);
 
-  if (error) {
-    return (
-      <div style={{ padding: '20px', color: 'red' }}>
-        {error}
-      </div>
-    );
-  }
+    workspace.addChangeListener(changeListener);
+    return () => workspace.removeChangeListener(changeListener);
+  }, [isInitialized, onChange]);
 
-  if (!toolboxConfig) {
-    return (
-      <div style={{ padding: '20px' }}>
-        Loading workspace...
-      </div>
-    );
-  }
+  // Auto-save functionality
+  useEffect(() => {
+    if (!workspaceRef.current || !isInitialized || autoSaveInterval <= 0) return;
+
+    const interval = setInterval(() => {
+      try {
+        const workspace = workspaceRef.current;
+        if (!workspace) return;
+
+        const state: WorkspaceState = {
+          blocks: Blockly.serialization.workspaces.save(workspace),
+          variables: workspace.getAllVariables().map(v => ({
+            id: v.getId(),
+            name: v.name,
+            type: v.type,
+          })),
+        };
+        onChange?.(state);
+      } catch (error) {
+        console.error('Error during auto-save:', error);
+        onError?.(error instanceof Error ? error : new Error(String(error)));
+      }
+    }, autoSaveInterval);
+
+    return () => clearInterval(interval);
+  }, [isInitialized, autoSaveInterval, onChange]);
 
   return (
-    <div style={{ height: '100%', width: '100%' }}>
-      <ReactBlocklyWorkspace
-        toolboxConfiguration={toolboxConfig}
-        workspaceConfiguration={{
-          grid: {
-            spacing: 20,
-            length: 3,
-            colour: '#ccc',
-            snap: true
-          },
-          readOnly: false,
-          trashcan: true,
-          move: {
-            scrollbars: true,
-            drag: true,
-            wheel: true
-          }
-        }}
-        onWorkspaceChange={handleWorkspaceChange}
-        onInject={onInject}
-        className="blockly-workspace"
-      />
+    <div
+      ref={containerRef}
+      className="blockly-workspace"
+      style={{ width: '100%', height: '100%', minHeight: '300px' }}
+    >
+      {isInitialized && children}
     </div>
   );
 });
+
+export const BlocklyWorkspace: React.FC<BlocklyWorkspaceProps> = ({
+  plugins = [],
+  ...props
+}) => (
+  <BlocklyPluginProvider plugins={plugins} workspace={props.value?.blocks}>
+    <BlocklyWorkspaceCore {...props} />
+  </BlocklyPluginProvider>
+);
 
 export default BlocklyWorkspace;

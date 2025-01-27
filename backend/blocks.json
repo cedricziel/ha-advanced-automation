@@ -1,4 +1,28 @@
 {
+  "ha_call_service": {
+    "type": "ha_call_service",
+    "message0": "Call service %1 with entity %2",
+    "args0": [
+      {
+        "type": "field_input",
+        "name": "SERVICE",
+        "default": "domain.service"
+      },
+      {
+        "type": "field_entity",
+        "name": "ENTITY_ID",
+        "default": "entity.id"
+      }
+    ],
+    "previous_statement": true,
+    "next_statement": true,
+    "colour": 60,
+    "tooltip": "Call a Home Assistant service",
+    "extensions": [
+      "entity_state_extension"
+    ],
+    "category": "Actions"
+  },
   "ha_state_condition": {
     "type": "ha_state_condition",
     "message0": "Entity %1 is %2",
@@ -21,6 +45,46 @@
       "entity_state_extension"
     ],
     "category": "Conditions"
+  },
+  "ha_time_trigger": {
+    "type": "ha_time_trigger",
+    "message0": "At time %1",
+    "args0": [
+      {
+        "type": "field_input",
+        "name": "TIME",
+        "default": "00:00"
+      }
+    ],
+    "previous_statement": true,
+    "next_statement": true,
+    "colour": 230,
+    "tooltip": "Triggers at a specific time",
+    "category": "Triggers"
+  },
+  "ha_state_trigger": {
+    "type": "ha_state_trigger",
+    "message0": "When entity %1 changes to %2",
+    "args0": [
+      {
+        "type": "field_entity",
+        "name": "ENTITY_ID",
+        "default": "entity.id"
+      },
+      {
+        "type": "field_input",
+        "name": "STATE",
+        "default": "state"
+      }
+    ],
+    "previous_statement": true,
+    "next_statement": true,
+    "colour": 230,
+    "tooltip": "Triggers when an entity changes to a specific state",
+    "extensions": [
+      "entity_state_extension"
+    ],
+    "category": "Triggers"
   },
   "ha_time_condition": {
     "type": "ha_time_condition",
@@ -61,70 +125,6 @@
     "next_statement": true,
     "colour": 60,
     "tooltip": "Set an entity to a specific state",
-    "extensions": [
-      "entity_state_extension"
-    ],
-    "category": "Actions"
-  },
-  "ha_state_trigger": {
-    "type": "ha_state_trigger",
-    "message0": "When entity %1 changes to %2",
-    "args0": [
-      {
-        "type": "field_entity",
-        "name": "ENTITY_ID",
-        "default": "entity.id"
-      },
-      {
-        "type": "field_input",
-        "name": "STATE",
-        "default": "state"
-      }
-    ],
-    "previous_statement": true,
-    "next_statement": true,
-    "colour": 230,
-    "tooltip": "Triggers when an entity changes to a specific state",
-    "extensions": [
-      "entity_state_extension"
-    ],
-    "category": "Triggers"
-  },
-  "ha_time_trigger": {
-    "type": "ha_time_trigger",
-    "message0": "At time %1",
-    "args0": [
-      {
-        "type": "field_input",
-        "name": "TIME",
-        "default": "00:00"
-      }
-    ],
-    "previous_statement": true,
-    "next_statement": true,
-    "colour": 230,
-    "tooltip": "Triggers at a specific time",
-    "category": "Triggers"
-  },
-  "ha_call_service": {
-    "type": "ha_call_service",
-    "message0": "Call service %1 with entity %2",
-    "args0": [
-      {
-        "type": "field_input",
-        "name": "SERVICE",
-        "default": "domain.service"
-      },
-      {
-        "type": "field_entity",
-        "name": "ENTITY_ID",
-        "default": "entity.id"
-      }
-    ],
-    "previous_statement": true,
-    "next_statement": true,
-    "colour": 60,
-    "tooltip": "Call a Home Assistant service",
     "extensions": [
       "entity_state_extension"
     ],

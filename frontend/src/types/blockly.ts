@@ -1,3 +1,5 @@
+import * as Blockly from 'blockly';
+
 export interface BlocklyToolbox {
     kind: string;
     contents: (ToolboxCategory | ToolboxSeparator)[];
@@ -110,3 +112,23 @@ export const STANDARD_CATEGORY_STYLES: CategoryStyles = {
     // User-defined blocks category
     user_category: { colour: '#bd10e0' }      // Purple
 };
+
+// Workspace state management
+export interface WorkspaceState {
+    blocks: any;
+    variables: {
+        id: string;
+        name: string;
+        type: string;
+    }[];
+    pluginStates?: Record<string, any>;
+}
+
+export interface BlocklyPlugin {
+    id: string;
+    init: (workspace: Blockly.Workspace) => void;
+    cleanup?: () => void;
+    dependencies?: string[];
+    getState?: (workspace: Blockly.Workspace) => any;
+    setState?: (workspace: Blockly.Workspace, state: any) => void;
+}
