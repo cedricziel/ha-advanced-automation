@@ -1,4 +1,16 @@
 import * as Blockly from 'blockly';
+import { STANDARD_CATEGORY_STYLES } from '../../types/blockly';
+
+// Create a theme that includes our category styles
+const defaultTheme = Blockly.Theme.defineTheme('default', {
+  name: 'default',
+  base: Blockly.Themes.Classic,
+  categoryStyles: STANDARD_CATEGORY_STYLES,
+  blockStyles: {},
+  componentStyles: {},
+  fontStyle: {},
+  startHats: false
+});
 
 export interface WorkspaceConfigOptions {
   readOnly?: boolean;
@@ -31,6 +43,7 @@ export const createWorkspaceConfig = (
 ) => {
   const defaultConfig = {
     toolbox,
+    theme: options.theme || defaultTheme,
     readOnly: false,
     trashcan: true,
     grid: {

@@ -18,12 +18,19 @@ import { StateChangeInspector } from '../StateChangeInspector';
 import Split from 'react-split';
 import BlocklyWorkspace from '../BlocklyWorkspace';
 import { automationService } from '../../services/automationService';
+import { blocklyService } from '../../services/blocklyService';
 import { AutomationCreateRequest, AutomationUpdateRequest, WorkspaceChangeData } from '../../types/automation';
+import { BlocklyToolbox, BlockDefinition } from '../../types/blockly';
 
 interface EditorState {
   workspace: any;
   triggers: any[];
   conditions: any[];
+}
+
+interface ToolboxState {
+  toolbox: BlocklyToolbox | null;
+  blocks: BlockDefinition[];
 }
 
 export const AutomationEditor: React.FC = () => {
@@ -40,10 +47,24 @@ export const AutomationEditor: React.FC = () => {
     triggers: [],
     conditions: []
   });
-  const [loading, setLoading] = useState(isEditing);
+  const [loading, setLoading] = useState(true);
+  const [toolboxState, setToolboxState] = useState<ToolboxState>({ toolbox: null, blocks: [] });
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [selectedTab, setSelectedTab] = useState(0);
+
+  const loadToolbox = React.useCallback(async () => {
+    try {
+      const config = await blocklyService.getToolboxConfig();
+      setToolboxState({
+        toolbox: config.toolbox,
+        blocks: config.blocks
+      });
+    } catch (err) {
+      setError('Failed to load Blockly toolbox');
+      console.error('Error loading toolbox:', err);
+    }
+  }, []);
 
   const loadAutomation = React.useCallback(async () => {
     try {
@@ -66,9 +87,15 @@ export const AutomationEditor: React.FC = () => {
   }, [id]);
 
   useEffect(() => {
-    if (id) {
-      loadAutomation();
-    }
+    // Load toolbox configuration first
+    loadToolbox().then(() => {
+      // Then load automation if editing
+      if (id) {
+        loadAutomation();
+      } else {
+        setLoading(false);
+      }
+    });
 
     return () => {
       // Cleanup state when component unmounts
@@ -84,7 +111,7 @@ export const AutomationEditor: React.FC = () => {
       setError(null);
       setSuccessMessage(null);
     };
-  }, [id, loadAutomation]);
+  }, [id, loadAutomation, loadToolbox]);
 
   const handleWorkspaceChange = useCallback((data: WorkspaceChangeData) => {
     setEditorState(prevState => {
@@ -166,11 +193,17 @@ export const AutomationEditor: React.FC = () => {
           className="split"
         >
           <div className="blockly-container">
-            <BlocklyWorkspace
-              onWorkspaceChange={handleWorkspaceChange}
-              initialState={editorState.workspace}
-              key={id || 'new'} // Force new instance when switching automations
-            />
+            {!loading && toolboxState.toolbox && (
+              <BlocklyWorkspace
+                onWorkspaceChange={handleWorkspaceChange}
+                initialState={editorState.workspace}
+                key={id || 'new'} // Force new instance when switching automations
+                toolbox={{
+                  ...toolboxState.toolbox,
+                  blocks: toolboxState.blocks
+                }}
+              />
+            )}
           </div>
 
           <div className="sidebar">

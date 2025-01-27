@@ -3,6 +3,7 @@ import * as Blockly from 'blockly';
 export interface BlocklyToolbox {
     kind: string;
     contents: (ToolboxCategory | ToolboxSeparator)[];
+    blocks?: BlockDefinition[];
 }
 
 export interface ToolboxCategory {

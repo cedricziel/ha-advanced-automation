@@ -23,45 +23,6 @@
     ],
     "category": "Actions"
   },
-  "ha_state_condition": {
-    "type": "ha_state_condition",
-    "message0": "Entity %1 is %2",
-    "args0": [
-      {
-        "type": "field_entity",
-        "name": "ENTITY_ID",
-        "default": "entity.id"
-      },
-      {
-        "type": "field_input",
-        "name": "STATE",
-        "default": "state"
-      }
-    ],
-    "output": "Boolean",
-    "colour": 120,
-    "tooltip": "Check if an entity is in a specific state",
-    "extensions": [
-      "entity_state_extension"
-    ],
-    "category": "Conditions"
-  },
-  "ha_time_trigger": {
-    "type": "ha_time_trigger",
-    "message0": "At time %1",
-    "args0": [
-      {
-        "type": "field_input",
-        "name": "TIME",
-        "default": "00:00"
-      }
-    ],
-    "previous_statement": true,
-    "next_statement": true,
-    "colour": 230,
-    "tooltip": "Triggers at a specific time",
-    "category": "Triggers"
-  },
   "ha_state_trigger": {
     "type": "ha_state_trigger",
     "message0": "When entity %1 changes to %2",
@@ -86,24 +47,27 @@
     ],
     "category": "Triggers"
   },
-  "ha_time_condition": {
-    "type": "ha_time_condition",
-    "message0": "Time is between %1 and %2",
+  "ha_state_condition": {
+    "type": "ha_state_condition",
+    "message0": "Entity %1 is %2",
     "args0": [
       {
-        "type": "field_input",
-        "name": "START_TIME",
-        "default": "00:00"
+        "type": "field_entity",
+        "name": "ENTITY_ID",
+        "default": "entity.id"
       },
       {
         "type": "field_input",
-        "name": "END_TIME",
-        "default": "23:59"
+        "name": "STATE",
+        "default": "state"
       }
     ],
     "output": "Boolean",
     "colour": 120,
-    "tooltip": "Check if current time is within a specific range",
+    "tooltip": "Check if an entity is in a specific state",
+    "extensions": [
+      "entity_state_extension"
+    ],
     "category": "Conditions"
   },
   "ha_set_state": {
@@ -129,5 +93,41 @@
       "entity_state_extension"
     ],
     "category": "Actions"
+  },
+  "ha_time_trigger": {
+    "type": "ha_time_trigger",
+    "message0": "At time %1",
+    "args0": [
+      {
+        "type": "field_input",
+        "name": "TIME",
+        "default": "00:00"
+      }
+    ],
+    "previous_statement": true,
+    "next_statement": true,
+    "colour": 230,
+    "tooltip": "Triggers at a specific time",
+    "category": "Triggers"
+  },
+  "ha_time_condition": {
+    "type": "ha_time_condition",
+    "message0": "Time is between %1 and %2",
+    "args0": [
+      {
+        "type": "field_input",
+        "name": "START_TIME",
+        "default": "00:00"
+      },
+      {
+        "type": "field_input",
+        "name": "END_TIME",
+        "default": "23:59"
+      }
+    ],
+    "output": "Boolean",
+    "colour": 120,
+    "tooltip": "Check if current time is within a specific range",
+    "category": "Conditions"
   }
 }

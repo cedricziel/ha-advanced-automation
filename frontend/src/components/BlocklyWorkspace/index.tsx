@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState, memo } from 'react';
 import * as Blockly from 'blockly';
 import './BlocklyWorkspace.css';
-import { BlocklyPlugin, WorkspaceState } from '../../types/blockly';
+import { BlocklyPlugin, WorkspaceState, ToolboxCategory, ToolboxBlock, BlocklyToolbox, BlockDefinition, STANDARD_CATEGORY_STYLES } from '../../types/blockly';
 import { WorkspaceChangeData } from '../../types/automation';
 import { BlocklyPluginProvider } from './BlocklyPluginProvider';
 import { createWorkspaceConfig, WorkspaceConfigOptions } from './workspaceConfig';
@@ -16,7 +16,7 @@ interface BlocklyWorkspaceProps {
 
   // Configuration
   workspaceConfiguration?: WorkspaceConfigOptions;
-  toolbox?: any;
+  toolbox?: BlocklyToolbox;
   theme?: Blockly.Theme;
   readOnly?: boolean;
 
@@ -52,6 +52,32 @@ const BlocklyWorkspaceCore: React.FC<BlocklyWorkspaceProps> = memo(({
     if (!containerRef.current || !toolbox) return;
 
     try {
+      // Register category styles with Blockly
+      Object.entries(STANDARD_CATEGORY_STYLES).forEach(([name, style]) => {
+        if (!Blockly.registry.hasItem('categoryStyle', name)) {
+          Blockly.registry.register('categoryStyle', name, style);
+        }
+      });
+
+      // Register block definitions from toolbox
+      (toolbox.contents as ToolboxCategory[]).forEach((category) => {
+        if (category.kind === 'category' && category.contents) {
+          category.contents.forEach((item) => {
+            if (item.kind === 'block' && 'type' in item) {
+              // Get block definition from backend response
+              const blockDef = toolbox.blocks?.find((block: BlockDefinition) => block.type === item.type);
+              if (blockDef && !Blockly.Blocks[item.type]) {
+                Blockly.Blocks[item.type] = {
+                  init: function() {
+                    this.jsonInit(blockDef);
+                  }
+                };
+              }
+            }
+          });
+        }
+      });
+
       const config = createWorkspaceConfig(toolbox, {
         ...workspaceConfiguration,
         readOnly,
@@ -69,10 +95,14 @@ const BlocklyWorkspaceCore: React.FC<BlocklyWorkspaceProps> = memo(({
             workspace.clear();
             Blockly.serialization.workspaces.load(initialState.blocks, workspace);
 
-            // Load variables
-            initialState.variables?.forEach(variable => {
-              workspace.createVariable(variable.name, variable.type, variable.id);
-            });
+            // Load variables if they exist and are iterable
+            if (initialState.variables && Array.isArray(initialState.variables)) {
+              initialState.variables.forEach(variable => {
+                if (variable && variable.name && variable.type && variable.id) {
+                  workspace.createVariable(variable.name, variable.type, variable.id);
+                }
+              });
+            }
           }
         } catch (error) {
           console.error('Error loading initial state:', error);
@@ -103,10 +133,14 @@ const BlocklyWorkspaceCore: React.FC<BlocklyWorkspaceProps> = memo(({
       workspace.clear();
       Blockly.serialization.workspaces.load(value.blocks, workspace);
 
-      // Load variables
-      value.variables?.forEach(variable => {
-        workspace.createVariable(variable.name, variable.type, variable.id);
-      });
+      // Load variables if they exist and are iterable
+      if (value.variables && Array.isArray(value.variables)) {
+        value.variables.forEach(variable => {
+          if (variable && variable.name && variable.type && variable.id) {
+            workspace.createVariable(variable.name, variable.type, variable.id);
+          }
+        });
+      }
     } catch (error) {
       console.error('Error updating workspace state:', error);
       onError?.(error instanceof Error ? error : new Error(String(error)));

@@ -1,101 +1,19 @@
 .blockly-workspace {
+  width: 100%;
+  height: 100%;
+  min-height: 300px;
   position: relative;
-  overflow: hidden;
-  touch-action: none;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  background-color: #fff;
+}
+
+.blockly-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Ensure the workspace fills its container */
-.blockly-workspace > div {
-  position: absolute !important;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-}
-
-/* Style the toolbox */
-.blocklyToolboxDiv {
-  background-color: #f5f5f5;
-  border-right: 1px solid #ddd;
-}
-
-/* Style the flyout */
-.blocklyFlyout {
-  border-right: 1px solid #ddd;
-}
-
-/* Style the workspace background */
-.blocklyMainBackground {
-  stroke: none;
-}
-
-/* Style the grid */
-.blocklyGrid {
-  stroke-width: 0.5;
-}
-
-/* Style the trash can */
-.blocklyTrash {
-  opacity: 0.7;
-}
-
-.blocklyTrash:hover {
-  opacity: 1;
-}
-
-/* Style the zoom controls */
-.blocklyZoom {
-  opacity: 0.7;
-}
-
-.blocklyZoom:hover {
-  opacity: 1;
-}
-
-/* Style scrollbars */
-.blocklyScrollbarHandle {
-  fill: #ccc;
-}
-
-.blocklyScrollbarBackground:hover + .blocklyScrollbarHandle,
-.blocklyScrollbarHandle:hover {
-  fill: #aaa;
-}
-
-/* Style selected blocks */
-.blocklySelected > .blocklyPath {
-  stroke: #fc3;
-  stroke-width: 3px;
-}
-
-/* Style the workspace when in readonly mode */
-.blockly-workspace[data-readonly="true"] {
-  background-color: #f8f8f8;
-}
-
-.blockly-workspace[data-readonly="true"] .blocklyWorkspace {
-  cursor: not-allowed;
-}
-
-/* Plugin container styles */
-.blockly-plugin-container {
-  position: absolute;
-  z-index: 100;
-}
-
-/* Error state */
-.blockly-workspace-error {
-  border-color: #ff4444;
-}
-
-.blockly-error-message {
-  color: #ff4444;
-  padding: 8px;
-  margin: 8px;
-  background-color: #fff;
-  border: 1px solid #ff4444;
-  border-radius: 4px;
+.injectionDiv {
+  width: 100% !important;
+  height: 100% !important;
 }
