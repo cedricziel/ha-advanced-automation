@@ -1,3 +1,19 @@
+export interface HAAction {
+    domain: string;
+    name: string;
+    description?: string;
+    target?: Record<string, any>;
+    fields: Record<string, ActionField>;
+    id: string; // The full action ID (domain.action)
+}
+
+export interface ActionField {
+    name: string;
+    description?: string;
+    required?: boolean;
+    selector?: Record<string, any>;
+}
+
 export interface EntityState {
     state: string;
     attributes: Record<string, any>;
@@ -141,6 +157,28 @@ class HAClient {
         if (this.ws) {
             this.ws.close();
             this.ws = null;
+        }
+    }
+
+    async getActions(): Promise<Record<string, HAAction>> {
+        // If we're not connected, connect first
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            await this.connect();
+        }
+        try {
+            console.log('Fetching actions...');
+            const response = await fetch('/api/actions');
+            if (!response.ok) {
+                const text = await response.text();
+                console.error('Failed to fetch actions:', response.status, text);
+                throw new Error(`Failed to fetch actions: ${response.status} ${text}`);
+            }
+            const data = await response.json();
+            console.log('Received actions:', data);
+            return data;
+        } catch (error) {
+            console.error('Error fetching actions:', error);
+            throw error;
         }
     }
 }

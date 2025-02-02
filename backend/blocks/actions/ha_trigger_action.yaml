@@ -1,17 +1,17 @@
 ---
-type: ha_call_service
-message0: "Call service %1 with entity %2"
+type: ha_trigger_action
+message0: "Trigger action %1 on %2"
 args0:
-  - type: field_input
+  - type: field_action
     name: SERVICE
-    default: domain.service
+    default: domain.action
   - type: field_entity
     name: ENTITY_ID
     default: entity.id
 previous_statement: true
 next_statement: true
 colour: 60
-tooltip: "Call a Home Assistant service"
+tooltip: "Trigger a Home Assistant action"
 extensions:
   - entity_state_extension
 category: Actions

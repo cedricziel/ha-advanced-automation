@@ -75,6 +75,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/health", get(health_check))
         .route("/ws", get(ws_handler))
         .route("/api/states", get(get_states))
+        .route("/api/actions", get(get_actions))
         .route("/api/automations", get(list_automations).post(create_automation))
         .route("/api/automations/{id}", get(get_automation))
         .route("/api/automations/{id}", put(update_automation))
@@ -123,6 +124,15 @@ async fn get_states(
 ) -> Json<serde_json::Value> {
     let states = state.ha_client.get_all_states().await;
     Json(json!(states))
+}
+
+async fn get_actions(
+    axum::extract::State(state): axum::extract::State<Arc<AppState>>,
+) -> Json<serde_json::Value> {
+    tracing::debug!("Getting actions...");
+    let actions = state.ha_client.get_all_actions().await;
+    tracing::debug!("Got actions: {}", serde_json::to_string_pretty(&actions).unwrap_or_default());
+    Json(json!(actions))
 }
 
 async fn ws_handler(

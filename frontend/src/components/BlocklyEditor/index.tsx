@@ -10,6 +10,7 @@ import 'blockly/javascript';
 import * as En from 'blockly/msg/en';
 import '../../extensions/entity_state_extension';
 import '../../extensions/field_entity';
+import '../../extensions/field_action';
 import {registerFieldMultilineInput} from '@blockly/field-multilineinput';
 
 // Ensure Blockly is available globally

@@ -26,7 +26,7 @@
         "properties": {
           "type": {
             "type": "string",
-            "enum": ["field_input", "field_entity", "field_number", "field_dropdown"],
+            "enum": ["field_input", "field_entity", "field_number", "field_dropdown", "field_action"],
             "description": "The type of input field"
           },
           "name": {
