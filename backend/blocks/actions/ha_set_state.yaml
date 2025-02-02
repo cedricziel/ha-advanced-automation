@@ -1,3 +1,4 @@
+---
 type: ha_set_state
 message0: "Set %1 to %2"
 args0:

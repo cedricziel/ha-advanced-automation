@@ -1,3 +1,4 @@
+---
 type: ha_time_trigger
 message0: "At time %1"
 args0:

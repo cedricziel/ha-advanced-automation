@@ -5,5 +5,8 @@
         "colour",
         "dotenv",
         "scrollbars"
-    ]
+    ],
+    "yaml.schemas": {
+        "backend/schemas/block.json": "backend/blocks/**/*.yaml"
+    }
 }

@@ -1,3 +1,4 @@
+---
 type: ha_state_trigger
 message0: "When entity %1 changes to %2"
 args0:
