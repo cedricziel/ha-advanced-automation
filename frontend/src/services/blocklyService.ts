@@ -1,7 +1,5 @@
 import { BlocklyToolbox, BlockDefinition } from '../types/blockly';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-
 interface ToolboxResponse {
   toolbox: BlocklyToolbox;
   blocks: BlockDefinition[];
@@ -10,11 +8,11 @@ interface ToolboxResponse {
 export const blocklyService = {
   async getToolboxConfig(): Promise<ToolboxResponse> {
     try {
-      console.log('Fetching toolbox configuration from backend...', API_BASE_URL);
+      console.log('Fetching toolbox configuration from backend...');
 
       let response;
       try {
-        response = await fetch(`${API_BASE_URL}/api/blockly/toolbox`);
+        response = await fetch(`/api/blockly/toolbox`);
         console.log('Received response:', {
           ok: response.ok,
           status: response.status,

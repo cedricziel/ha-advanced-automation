@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React, { useEffect, useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Grid,
   Card,
@@ -15,21 +15,22 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-} from '@mui/material';
+} from "@mui/material";
 import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Add as AddIcon,
-} from '@mui/icons-material';
-import { Automation } from '../../types/automation';
-import { automationService } from '../../services/automationService';
+} from "@mui/icons-material";
+import { Automation } from "../../types/automation";
+import { automationService } from "../../services/automationService";
 
 export const AutomationsList: React.FC = () => {
   const navigate = useNavigate();
   const [automations, setAutomations] = useState<Automation[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [automationToDelete, setAutomationToDelete] = useState<Automation | null>(null);
+  const [automationToDelete, setAutomationToDelete] =
+    useState<Automation | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,8 +46,8 @@ export const AutomationsList: React.FC = () => {
       setAutomations(data);
       setError(null);
     } catch (err) {
-      setError('Failed to load automations');
-      console.error('Error loading automations:', err);
+      setError("Failed to load automations");
+      console.error("Error loading automations:", err);
     } finally {
       setLoading(false);
     }
@@ -58,11 +59,11 @@ export const AutomationsList: React.FC = () => {
         automation.id,
         !automation.enabled
       );
-      setAutomations(automations.map(a =>
-        a.id === updated.id ? updated : a
-      ));
+      setAutomations(
+        automations.map((a) => (a.id === updated.id ? updated : a))
+      );
     } catch (err) {
-      console.error('Error toggling automation:', err);
+      console.error("Error toggling automation:", err);
     }
   };
 
@@ -75,11 +76,11 @@ export const AutomationsList: React.FC = () => {
 
     try {
       await automationService.deleteAutomation(automationToDelete.id);
-      setAutomations(automations.filter(a => a.id !== automationToDelete.id));
+      setAutomations(automations.filter((a) => a.id !== automationToDelete.id));
       setDeleteDialogOpen(false);
       setAutomationToDelete(null);
     } catch (err) {
-      console.error('Error deleting automation:', err);
+      console.error("Error deleting automation:", err);
     }
   };
 
@@ -88,14 +89,15 @@ export const AutomationsList: React.FC = () => {
     setDeleteDialogOpen(true);
   };
 
-  const filteredAutomations = automations.filter(automation =>
-    automation.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    automation.description?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredAutomations = automations.filter(
+    (automation) =>
+      automation.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      automation.description?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (loading) {
     return (
-      <Box sx={{ p: 3, textAlign: 'center' }}>
+      <Box sx={{ p: 3, textAlign: "center" }}>
         <Typography>Loading automations...</Typography>
       </Box>
     );
@@ -103,7 +105,7 @@ export const AutomationsList: React.FC = () => {
 
   if (error) {
     return (
-      <Box sx={{ p: 3, textAlign: 'center' }}>
+      <Box sx={{ p: 3, textAlign: "center" }}>
         <Typography color="error">{error}</Typography>
       </Box>
     );
@@ -111,7 +113,14 @@ export const AutomationsList: React.FC = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <Box
+        sx={{
+          mb: 3,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
         <TextField
           label="Search automations"
           variant="outlined"
@@ -124,7 +133,7 @@ export const AutomationsList: React.FC = () => {
           variant="contained"
           color="primary"
           startIcon={<AddIcon />}
-          onClick={() => navigate('/automations/new')}
+          onClick={() => navigate("/automations/new")}
         >
           New Automation
         </Button>
@@ -135,24 +144,45 @@ export const AutomationsList: React.FC = () => {
           <Grid item xs={12} sm={6} md={4} key={automation.id}>
             <Card>
               <CardContent>
-                <Typography variant="h6" component="div" gutterBottom>
+                <Typography
+                  variant="h6"
+                  component="div"
+                  className="automation-name"
+                  gutterBottom
+                >
                   {automation.name}
                 </Typography>
                 {automation.description && (
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    gutterBottom
+                  >
                     {automation.description}
                   </Typography>
                 )}
                 <Box>
-                  <Typography variant="caption" color="text.secondary" display="block">
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    display="block"
+                    className="automation-version"
+                  >
                     Version: {automation.version}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary" display="block">
-                    Last updated: {new Date(automation.updated_at).toLocaleString()}
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    display="block"
+                  >
+                    Last updated:{" "}
+                    {new Date(automation.updated_at).toLocaleString()}
                   </Typography>
                 </Box>
               </CardContent>
-              <CardActions sx={{ justifyContent: 'space-between', px: 2, pb: 1 }}>
+              <CardActions
+                sx={{ justifyContent: "space-between", px: 2, pb: 1 }}
+              >
                 <Switch
                   checked={automation.enabled}
                   onChange={() => handleToggle(automation)}
@@ -187,7 +217,8 @@ export const AutomationsList: React.FC = () => {
         <DialogTitle>Delete Automation</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to delete "{automationToDelete?.name}"? This action cannot be undone.
+            Are you sure you want to delete "{automationToDelete?.name}"? This
+            action cannot be undone.
           </Typography>
         </DialogContent>
         <DialogActions>

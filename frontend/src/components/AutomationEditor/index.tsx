@@ -1,6 +1,14 @@
-import React, { useState, useEffect, useCallback, memo, useMemo, useRef } from 'react';
-import './AutomationEditor.css';
-import { useNavigate, useParams } from 'react-router-dom';
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  memo,
+  useMemo,
+  useRef,
+  JSX,
+} from "react";
+import "./AutomationEditor.css";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   Box,
   TextField,
@@ -13,14 +21,24 @@ import {
   Tabs,
   Tab,
   Badge,
-} from '@mui/material';
-import { StateChangeInspector } from '../StateChangeInspector';
-import Split from 'react-split';
-import BlocklyEditor from '../BlocklyEditor';
-import { automationService } from '../../services/automationService';
-import { blocklyService } from '../../services/blocklyService';
-import { AutomationCreateRequest, AutomationUpdateRequest, WorkspaceChangeData, TriggerDefinition, ConditionDefinition } from '../../types/automation';
-import { BlocklyToolbox, BlockDefinition, WorkspaceState } from '../../types/blockly';
+} from "@mui/material";
+import { StateChangeInspector } from "../StateChangeInspector";
+import Split from "react-split";
+import BlocklyEditor from "../BlocklyEditor";
+import { BlocklyErrorBoundary } from "../BlocklyEditor/BlocklyErrorBoundary";
+import { automationService } from "../../services/automationService";
+import { blocklyService } from "../../services/blocklyService";
+import {
+  AutomationCreateRequest,
+  AutomationUpdateRequest,
+  TriggerDefinition,
+  ConditionDefinition,
+} from "../../types/automation";
+import {
+  BlocklyToolbox,
+  BlockDefinition,
+  WorkspaceState,
+} from "../../types/blockly";
 
 interface ToolboxState {
   toolbox: BlocklyToolbox | null;
@@ -34,17 +52,22 @@ const AutomationEditorComponent = (): JSX.Element => {
   const mountedRef = useRef(true);
   const blocklyEditorRef = useRef<BlocklyEditor>(null);
 
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [enabled, setEnabled] = useState(true);
   const [version, setVersion] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [toolboxState, setToolboxState] = useState<ToolboxState>({ toolbox: null, blocks: [] });
+  const [toolboxState, setToolboxState] = useState<ToolboxState>({
+    toolbox: null,
+    blocks: [],
+  });
   const [error, setError] = useState<string | null>(null);
   const [toolboxError, setToolboxError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [selectedTab, setSelectedTab] = useState(0);
-  const [loadedAutomation, setLoadedAutomation] = useState<{workspace?: WorkspaceState}>();
+  const [loadedAutomation, setLoadedAutomation] = useState<{
+    workspace?: WorkspaceState;
+  }>();
 
   // Cleanup on unmount
   useEffect(() => {
@@ -53,49 +76,51 @@ const AutomationEditorComponent = (): JSX.Element => {
     };
   }, []);
 
-const loadToolbox = useCallback(async () => {
-  console.log('Starting toolbox load...');
-  try {
-    const config = await blocklyService.getToolboxConfig();
-    console.log('Toolbox config loaded:', {
-      hasToolbox: !!config.toolbox,
-      hasBlocks: !!config.blocks,
-      numCategories: config.toolbox?.contents?.length,
-      numBlocks: config.blocks?.length
-    });
+  const loadToolbox = useCallback(async () => {
+    console.log("Starting toolbox load...");
+    try {
+      const config = await blocklyService.getToolboxConfig();
+      console.log("Toolbox config loaded:", {
+        hasToolbox: !!config.toolbox,
+        hasBlocks: !!config.blocks,
+        numCategories: config.toolbox?.contents?.length,
+        numBlocks: config.blocks?.length,
+      });
 
-    if (!config.toolbox || !config.blocks) {
-      throw new Error('Invalid toolbox configuration received from server');
+      if (!config.toolbox || !config.blocks) {
+        throw new Error("Invalid toolbox configuration received from server");
+      }
+
+      return config;
+    } catch (err) {
+      console.error("Error loading toolbox:", err);
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to load Blockly toolbox";
+      throw new Error(errorMessage);
     }
-
-    return config;
-  } catch (err) {
-    console.error('Error loading toolbox:', err);
-    const errorMessage = err instanceof Error ? err.message : 'Failed to load Blockly toolbox';
-    throw new Error(errorMessage);
-  }
-}, []); // No dependencies needed as it's a pure async operation
+  }, []); // No dependencies needed as it's a pure async operation
 
   const loadAutomation = useCallback(async () => {
-    console.log('Starting automation load...');
+    console.log("Starting automation load...");
     try {
       const automation = await automationService.getAutomation(id!);
-      console.log('Automation loaded:', {
+      console.log("Automation loaded:", {
         id: automation.id,
         name: automation.name,
-        hasWorkspace: !!automation.workspace
+        hasWorkspace: !!automation.workspace,
       });
 
       return automation;
     } catch (err) {
-      console.error('Error loading automation:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load automation';
+      console.error("Error loading automation:", err);
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to load automation";
       throw new Error(errorMessage);
     }
   }, [id]);
 
   useEffect(() => {
-    console.log('Initializing editor...');
+    console.log("Initializing editor...");
     let mounted = true;
 
     const initializeEditor = async () => {
@@ -113,12 +138,12 @@ const loadToolbox = useCallback(async () => {
         if (mounted) {
           setToolboxState({
             toolbox: toolboxConfig.toolbox,
-            blocks: toolboxConfig.blocks
+            blocks: toolboxConfig.blocks,
           });
 
           if (automation) {
             setName(automation.name);
-            setDescription(automation.description || '');
+            setDescription(automation.description || "");
             setEnabled(automation.enabled);
             setVersion(automation.version);
             setLoadedAutomation(automation);
@@ -128,9 +153,12 @@ const loadToolbox = useCallback(async () => {
           setToolboxError(null);
         }
       } catch (error) {
-        console.error('Error initializing editor:', error);
+        console.error("Error initializing editor:", error);
         if (mounted) {
-          const errorMessage = error instanceof Error ? error.message : 'Failed to initialize editor';
+          const errorMessage =
+            error instanceof Error
+              ? error.message
+              : "Failed to initialize editor";
           setError(errorMessage);
           setToolboxError(errorMessage);
         }
@@ -144,11 +172,11 @@ const loadToolbox = useCallback(async () => {
     initializeEditor();
 
     return () => {
-      console.log('Cleaning up editor state');
+      console.log("Cleaning up editor state");
       mounted = false;
       // Reset all state
-      setName('');
-      setDescription('');
+      setName("");
+      setDescription("");
       setEnabled(true);
       setVersion(1);
       setError(null);
@@ -159,70 +187,82 @@ const loadToolbox = useCallback(async () => {
     };
   }, [id, loadToolbox, loadAutomation]); // Include all used callbacks
 
-  const handleSubmit = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
 
-    const currentState = blocklyEditorRef.current?.getWorkspaceState();
-    if (!currentState) {
-      setError('Please add some blocks to your automation');
-      return;
-    }
-
-    try {
-      // Extract triggers and conditions from workspace
-      const triggers: TriggerDefinition[] = [];
-      const conditions: ConditionDefinition[] = [];
-
-      // For now, we'll use empty arrays since the extraction logic will be implemented later
-      const automationData: Omit<AutomationCreateRequest, 'id'> = {
-        name,
-        description: description || undefined,
-        workspace: currentState,
-        triggers,
-        conditions
-      };
-
-      if (isEditing) {
-        const updateData: AutomationUpdateRequest = {
-          ...automationData,
-          enabled,
-          version,
-        };
-        await automationService.updateAutomation(id!, updateData);
-        setSuccessMessage('Automation updated successfully');
-        navigate('/automations');
-      } else {
-        const result = await automationService.createAutomation(automationData);
-        setSuccessMessage('Automation created successfully');
-        navigate('/automations');
+      const currentState = blocklyEditorRef.current?.getWorkspaceState();
+      if (!currentState) {
+        setError("Please add some blocks to your automation");
+        return;
       }
-    } catch (err) {
-      setError('Failed to save automation');
-      console.error('Error saving automation:', err);
-    }
-  }, [name, description, isEditing, enabled, version, id, navigate]);
 
-  const handleTabChange = useCallback((event: React.SyntheticEvent, newValue: number) => {
-    setSelectedTab(newValue);
-  }, []);
+      try {
+        // Extract triggers and conditions from workspace
+        const triggers: TriggerDefinition[] = [];
+        const conditions: ConditionDefinition[] = [];
 
-  const memoizedToolbox = useMemo<BlocklyToolbox | undefined>(() =>
-    toolboxState.toolbox ? {
-      ...toolboxState.toolbox,
-      blocks: toolboxState.blocks
-    } : undefined
-  , [toolboxState.toolbox, toolboxState.blocks]);
+        // For now, we'll use empty arrays since the extraction logic will be implemented later
+        const automationData: Omit<AutomationCreateRequest, "id"> = {
+          name,
+          description: description || undefined,
+          workspace: currentState,
+          triggers,
+          conditions,
+        };
+
+        if (isEditing) {
+          const updateData: AutomationUpdateRequest = {
+            ...automationData,
+            enabled,
+            version,
+          };
+          await automationService.updateAutomation(id!, updateData);
+          setSuccessMessage("Automation updated successfully");
+          navigate("/automations");
+        } else {
+          const result = await automationService.createAutomation(
+            automationData
+          );
+          setSuccessMessage("Automation created successfully");
+          navigate("/automations");
+        }
+      } catch (err) {
+        setError("Failed to save automation");
+        console.error("Error saving automation:", err);
+      }
+    },
+    [name, description, isEditing, enabled, version, id, navigate]
+  );
+
+  const handleTabChange = useCallback(
+    (event: React.SyntheticEvent, newValue: number) => {
+      setSelectedTab(newValue);
+    },
+    []
+  );
+
+  const memoizedToolbox = useMemo<BlocklyToolbox | undefined>(
+    () =>
+      toolboxState.toolbox
+        ? {
+            ...toolboxState.toolbox,
+            blocks: toolboxState.blocks,
+          }
+        : undefined,
+    [toolboxState.toolbox, toolboxState.blocks]
+  );
 
   const handleCancel = useCallback(() => {
-    navigate('/automations');
+    navigate("/automations");
   }, [navigate]);
 
   // Show loading state
   if (loading) {
-    console.log('Showing loading state');
+    console.log("Showing loading state");
 
     return (
-      <Box sx={{ p: 3, textAlign: 'center' }}>
+      <Box sx={{ p: 3, textAlign: "center" }}>
         <Typography>Loading editor...</Typography>
       </Box>
     );
@@ -231,7 +271,7 @@ const loadToolbox = useCallback(async () => {
   // Show error state
   if (toolboxError || error) {
     return (
-      <Box sx={{ p: 3, textAlign: 'center' }}>
+      <Box sx={{ p: 3, textAlign: "center" }}>
         <Alert severity="error" sx={{ mb: 2 }}>
           {toolboxError || error}
         </Alert>
@@ -245,7 +285,7 @@ const loadToolbox = useCallback(async () => {
   // Show error if toolbox is missing
   if (!toolboxState.toolbox || !toolboxState.blocks) {
     return (
-      <Box sx={{ p: 3, textAlign: 'center' }}>
+      <Box sx={{ p: 3, textAlign: "center" }}>
         <Alert severity="error">
           Blockly toolbox configuration is incomplete or invalid
         </Alert>
@@ -253,15 +293,21 @@ const loadToolbox = useCallback(async () => {
     );
   }
 
-  console.log('Rendering BlocklyEditor with toolbox:', memoizedToolbox);
+  console.log("Rendering BlocklyEditor with toolbox:", memoizedToolbox);
 
   return (
-    <Box sx={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column' }}>
+    <Box
+      sx={{
+        height: "calc(100vh - 64px)",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
       <Typography variant="h5" gutterBottom sx={{ p: 2 }}>
-        {isEditing ? 'Edit Automation' : 'Create New Automation'}
+        {isEditing ? "Edit Automation" : "Create New Automation"}
       </Typography>
 
-      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <Box sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
         <Split
           sizes={[70, 30]}
           minSize={200}
@@ -272,40 +318,42 @@ const loadToolbox = useCallback(async () => {
           className="split"
         >
           <div className="blockly-container">
-            <BlocklyEditor
-              key={id} // Use id as key to ensure proper remounting when switching automations
-              initialState={loadedAutomation?.workspace}
-              ref={blocklyEditorRef}
-              onError={error => setError(error.message)}
-              toolbox={memoizedToolbox}
-              readOnly={false}
-              workspaceConfiguration={{
-                grid: {
-                  spacing: 20,
-                  length: 3,
-                  colour: '#ccc',
-                  snap: true,
-                },
-                move: {
-                  scrollbars: true,
-                  drag: true,
-                  wheel: true,
-                },
-                zoom: {
-                  controls: true,
-                  wheel: true,
-                  startScale: 1.0,
-                  maxScale: 3,
-                  minScale: 0.3,
-                  scaleSpeed: 1.2,
-                },
-                trashcan: true
-              }}
-            />
+            <BlocklyErrorBoundary>
+              <BlocklyEditor
+                key={id} // Use id as key to ensure proper remounting when switching automations
+                initialState={loadedAutomation?.workspace}
+                ref={blocklyEditorRef}
+                onError={(error) => setError(error.message)}
+                toolbox={memoizedToolbox}
+                readOnly={false}
+                workspaceConfiguration={{
+                  grid: {
+                    spacing: 20,
+                    length: 3,
+                    colour: "#ccc",
+                    snap: true,
+                  },
+                  move: {
+                    scrollbars: true,
+                    drag: true,
+                    wheel: true,
+                  },
+                  zoom: {
+                    controls: true,
+                    wheel: true,
+                    startScale: 1.0,
+                    maxScale: 3,
+                    minScale: 0.3,
+                    scaleSpeed: 1.2,
+                  },
+                  trashcan: true,
+                }}
+              />
+            </BlocklyErrorBoundary>
           </div>
 
           <div className="sidebar">
-            <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+            <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
               <Tabs value={selectedTab} onChange={handleTabChange}>
                 <Tab label="Details" />
                 <Tab label="Raw JSON" />
@@ -324,6 +372,7 @@ const loadToolbox = useCallback(async () => {
                 <form onSubmit={(e) => e.preventDefault()}>
                   <TextField
                     label="Name"
+                    id="automation-name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     fullWidth
@@ -352,7 +401,11 @@ const loadToolbox = useCallback(async () => {
                         label="Enabled"
                         sx={{ mt: 2 }}
                       />
-                      <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+                      <Typography
+                        variant="body2"
+                        color="textSecondary"
+                        sx={{ mt: 1 }}
+                      >
                         Version: {version}
                       </Typography>
                     </>
@@ -361,47 +414,56 @@ const loadToolbox = useCallback(async () => {
               )}
               {selectedTab === 1 && (
                 <Box sx={{ mt: 2 }}>
-                  <pre style={{
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
-                    backgroundColor: '#f5f5f5',
-                    padding: '1rem',
-                    borderRadius: '4px',
-                    margin: 0
-                  }}>
-                    {JSON.stringify(blocklyEditorRef.current?.getWorkspaceState() || null, null, 2)}
+                  <pre
+                    style={{
+                      whiteSpace: "pre-wrap",
+                      wordBreak: "break-word",
+                      backgroundColor: "#f5f5f5",
+                      padding: "1rem",
+                      borderRadius: "4px",
+                      margin: 0,
+                    }}
+                  >
+                    {JSON.stringify(
+                      blocklyEditorRef.current?.getWorkspaceState() || null,
+                      null,
+                      2
+                    )}
                   </pre>
                 </Box>
               )}
               {selectedTab === 2 && (
-                <Box sx={{
-                  mt: 2,
-                  height: 'calc(100vh - 250px)',
-                  '& .state-change-inspector': {
-                    height: '100%',
-                    border: '1px solid rgba(0, 0, 0, 0.12)',
-                    borderRadius: 1,
-                    bgcolor: 'background.paper'
-                  }
-                }}>
+                <Box
+                  sx={{
+                    mt: 2,
+                    height: "calc(100vh - 250px)",
+                    "& .state-change-inspector": {
+                      height: "100%",
+                      border: "1px solid rgba(0, 0, 0, 0.12)",
+                      borderRadius: 1,
+                      bgcolor: "background.paper",
+                    },
+                  }}
+                >
                   <StateChangeInspector />
                 </Box>
               )}
             </Box>
 
-            <Box className="sidebar-footer" sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-              <Button
-                variant="outlined"
-                onClick={handleCancel}
-              >
+            <Box
+              className="sidebar-footer"
+              sx={{ display: "flex", gap: 2, justifyContent: "flex-end" }}
+            >
+              <Button variant="outlined" onClick={handleCancel}>
                 Cancel
               </Button>
               <Button
+                id="save-automation"
                 variant="contained"
                 color="primary"
                 onClick={handleSubmit}
               >
-                {isEditing ? 'Update' : 'Create'} Automation
+                {isEditing ? "Update" : "Create"} Automation
               </Button>
             </Box>
           </div>

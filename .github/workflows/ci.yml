@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 permissions:
   contents: read
@@ -18,29 +18,32 @@ jobs:
         working-directory: frontend
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
-        cache-dependency-path: frontend/package-lock.json
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
 
-    - name: Install dependencies
-      run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-    - name: Run tests
-      run: npm test -- --passWithNoTests
+      - name: lint
+        run: npm run lint
 
-    - name: Build
-      run: npm run build
+      - name: Run tests
+        run: npm run test
 
-    - name: Upload frontend build
-      uses: actions/upload-artifact@v4
-      with:
-        name: frontend-build
-        path: frontend/build/
+      - name: Build
+        run: npm run build
+
+      - name: Upload frontend build
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/build/
 
   backend-build:
     runs-on: ubuntu-latest
@@ -59,37 +62,36 @@ jobs:
         working-directory: backend
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Install Rust toolchain
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        profile: minimal
-        toolchain: stable
-        targets: ${{ matrix.target }}
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          profile: minimal
+          toolchain: stable
+          targets: ${{ matrix.target }}
 
-    - name: Cache Rust dependencies
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.cargo/registry/index/
-          ~/.cargo/registry/cache/
-          ~/.cargo/git/db/
-          backend/target/
-        key: ${{ runner.os }}-cargo-${{ matrix.arch }}-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache Rust dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            backend/target/
+          key: ${{ runner.os }}-cargo-${{ matrix.arch }}-${{ hashFiles('**/Cargo.lock') }}
 
-    - name: Install cross
-      run: cargo install cross
+      - name: Install cross
+        run: cargo install cross
 
-    - name: Build ${{ matrix.arch }}
-      run: cross build --release --target ${{ matrix.target }}
+      - name: Build ${{ matrix.arch }}
+        run: cross build --release --target ${{ matrix.target }}
 
-    - name: Upload binary
-      uses: actions/upload-artifact@v4
-      with:
-        name: binary-${{ matrix.arch }}
-        path: backend/target/${{ matrix.target }}/release/ha-advanced-automation
-
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.arch }}
+          path: backend/target/${{ matrix.target }}/release/ha-advanced-automation
 
   prepare-docker:
     needs: [backend-build]

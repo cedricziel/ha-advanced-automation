@@ -1,12 +1,12 @@
-use std::sync::Arc;
-use std::sync::atomic::{AtomicI32, Ordering};
-use tokio::sync::{broadcast, RwLock};
+use futures::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use futures::{SinkExt, StreamExt};
-use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 use std::collections::HashMap;
 use std::error::Error;
+use std::sync::atomic::{AtomicI32, Ordering};
+use std::sync::Arc;
+use tokio::sync::{broadcast, RwLock};
+use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EntityState {
@@ -27,7 +27,7 @@ pub struct ActionField {
 pub struct Action {
     #[serde(skip_deserializing)]
     pub domain: String,
-    pub name: String,
+    pub name: Option<String>,
     pub description: Option<String>,
     pub target: Option<Value>,
     pub fields: HashMap<String, ActionField>,
@@ -174,7 +174,7 @@ impl HaClient {
                                 for state in result {
                                     if let (Some(entity_id), Some(state_obj)) = (
                                         state["entity_id"].as_str(),
-                                        serde_json::from_value::<EntityState>(state.clone()).ok()
+                                        serde_json::from_value::<EntityState>(state.clone()).ok(),
                                     ) {
                                         states_map.insert(entity_id.to_string(), state_obj);
                                     }
@@ -191,15 +191,27 @@ impl HaClient {
                                 for (domain, domain_services) in result {
                                     if let Some(services) = domain_services.as_object() {
                                         for (service_name, service_data) in services {
-                                            match serde_json::from_value::<Action>(service_data.clone()) {
+                                            match serde_json::from_value::<Action>(
+                                                service_data.clone(),
+                                            ) {
                                                 Ok(mut action) => {
                                                     action.domain = domain.clone();
-                                                    action.id = format!("{}.{}", domain, service_name);
-                                                    tracing::debug!("Added action: {}.{}", domain, service_name);
+                                                    action.id =
+                                                        format!("{}.{}", domain, service_name);
+                                                    tracing::debug!(
+                                                        "Added action: {}.{}",
+                                                        domain,
+                                                        service_name
+                                                    );
                                                     actions_map.insert(action.id.clone(), action);
                                                 }
                                                 Err(e) => {
-                                                    tracing::error!("Failed to parse service {}.{}: {}", domain, service_name, e);
+                                                    tracing::error!(
+                                                        "Failed to parse service {}.{}: {}",
+                                                        domain,
+                                                        service_name,
+                                                        e
+                                                    );
                                                 }
                                             }
                                         }
@@ -213,8 +225,13 @@ impl HaClient {
                         if let Ok(event) = serde_json::from_value::<HaEvent>(json) {
                             if let Some(event_data) = event.event {
                                 if let Some(state_changed) = event_data.data {
-                                    if let (Some(entity_id), Some(new_state)) = (state_changed.entity_id, state_changed.new_state) {
-                                        states.write().await.insert(entity_id.clone(), new_state.clone());
+                                    if let (Some(entity_id), Some(new_state)) =
+                                        (state_changed.entity_id, state_changed.new_state)
+                                    {
+                                        states
+                                            .write()
+                                            .await
+                                            .insert(entity_id.clone(), new_state.clone());
                                         let _ = state_tx.send((entity_id, new_state));
                                     }
                                 }
