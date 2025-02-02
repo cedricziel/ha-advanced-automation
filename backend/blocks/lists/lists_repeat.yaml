@@ -1,0 +1,16 @@
+type: lists_repeat
+message0: create list with item %1 repeated %2 times
+args0:
+  - type: input_value
+    name: ITEM
+  - type: input_value
+    name: NUM
+    check: Number
+output: Array
+colour: 260
+tooltip: >-
+  Create a list consisting of the given item repeated the specified number
+  of times
+help_url: >-
+  https://github.com/google/blockly/wiki/Lists#create-list-with-item-repeated
+category: Lists

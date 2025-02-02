@@ -1,0 +1,17 @@
+type: math_constant
+message0: "%1"
+args0:
+  - type: field_dropdown
+    name: CONSTANT
+    options:
+      - ["π", "PI"]
+      - ["e", "E"]
+      - ["φ", "GOLDEN_RATIO"]
+      - ["sqrt(2)", "SQRT2"]
+      - ["sqrt(½)", "SQRT1_2"]
+      - ["∞", "INFINITY"]
+output: Number
+colour: 230
+tooltip: Return one of the common mathematical constants
+help_url: https://github.com/google/blockly/wiki/Math#constants
+category: Math

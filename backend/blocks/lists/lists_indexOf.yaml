@@ -1,0 +1,20 @@
+type: lists_indexOf
+message0: find %1 occurrence of item %2 in list %3
+args0:
+  - type: field_dropdown
+    name: END
+    options:
+      - ["first", "FIRST"]
+      - ["last", "LAST"]
+  - type: input_value
+    name: FIND
+  - type: input_value
+    name: VALUE
+    check: Array
+output: Number
+colour: 260
+tooltip: >-
+  Returns the index of the first/last occurrence of the item in the list.
+  Returns 0 if item is not found
+help_url: https://github.com/google/blockly/wiki/Lists#getting-items-from-a-list
+category: Lists

@@ -1,0 +1,22 @@
+type: math_on_list
+message0: "%1 of list %2"
+args0:
+  - type: field_dropdown
+    name: OP
+    options:
+      - ["sum", "SUM"]
+      - ["min", "MIN"]
+      - ["max", "MAX"]
+      - ["average", "AVERAGE"]
+      - ["median", "MEDIAN"]
+      - ["mode", "MODE"]
+      - ["standard deviation", "STD_DEV"]
+      - ["random item", "RANDOM"]
+  - type: input_value
+    name: LIST
+    check: Array
+output: Number
+colour: 230
+tooltip: Return a computation from the list
+help_url: https://github.com/google/blockly/wiki/Math#operations-on-lists
+category: Math

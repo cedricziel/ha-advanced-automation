@@ -4,12 +4,19 @@ use std::fs;
 use std::path::PathBuf;
 use tokio::sync::RwLock;
 use chrono::{DateTime, Utc};
+use walkdir::WalkDir;
+use log::{info, error};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockArgument {
     pub r#type: String,
     pub name: String,
-    pub default: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub check: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub options: Option<Vec<Vec<String>>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -17,6 +24,10 @@ pub struct BlockDefinition {
     pub r#type: String,
     pub message0: String,
     pub args0: Vec<BlockArgument>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message1: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub args1: Option<Vec<BlockArgument>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub output: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -31,11 +42,11 @@ pub struct BlockDefinition {
     pub extensions: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mutator: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category: Option<String>,
     // User-defined block fields
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub category: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub created: Option<DateTime<Utc>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -44,29 +55,63 @@ pub struct BlockDefinition {
 
 pub struct BlockStore {
     blocks: RwLock<HashMap<String, BlockDefinition>>,
-    file_path: PathBuf,
+    blocks_dir: PathBuf,
 }
 
 impl BlockStore {
     pub async fn new() -> Result<Self, std::io::Error> {
-        let file_path = PathBuf::from("blocks.json");
-        let blocks = if file_path.exists() {
-            let content = fs::read_to_string(&file_path)?;
-            serde_json::from_str(&content).unwrap_or_default()
-        } else {
-            HashMap::new()
-        };
+        let blocks_dir = PathBuf::from("blocks");
+        let mut blocks = HashMap::new();
+
+        // Load all YAML files from the blocks directory
+        for entry in WalkDir::new(&blocks_dir)
+            .follow_links(true)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            if entry.path().extension().map_or(false, |ext| ext == "yaml" || ext == "yml") {
+                match fs::read_to_string(entry.path()) {
+                    Ok(content) => {
+                        match serde_yaml::from_str::<BlockDefinition>(&content) {
+                            Ok(block) => {
+                                info!("Loaded block: {} from {}", block.r#type, entry.path().display());
+                                blocks.insert(block.r#type.clone(), block);
+                            }
+                            Err(e) => {
+                                error!("Failed to parse block from {}: {}", entry.path().display(), e);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        error!("Failed to read {}: {}", entry.path().display(), e);
+                    }
+                }
+            }
+        }
 
         Ok(Self {
             blocks: RwLock::new(blocks),
-            file_path,
+            blocks_dir,
         })
     }
 
-    async fn save(&self) -> Result<(), std::io::Error> {
-        let blocks = self.blocks.read().await;
-        let content = serde_json::to_string_pretty(&*blocks)?;
-        fs::write(&self.file_path, content)
+    async fn save_block_to_yaml(&self, block: &BlockDefinition) -> Result<(), std::io::Error> {
+        let category_dir = match &block.category {
+            Some(category) => self.blocks_dir.join(category.to_lowercase()),
+            None => self.blocks_dir.join("custom"),
+        };
+
+        fs::create_dir_all(&category_dir)?;
+
+        let file_path = category_dir.join(format!("{}.yaml", block.r#type));
+        let yaml = serde_yaml::to_string(&block).map_err(|e| {
+            std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Failed to serialize block to YAML: {}", e),
+            )
+        })?;
+
+        fs::write(file_path, yaml)
     }
 
     pub async fn list(&self) -> Vec<BlockDefinition> {
@@ -89,192 +134,31 @@ impl BlockStore {
         }
         block.modified = Some(now);
 
+        // Save to YAML file
+        self.save_block_to_yaml(&block).await?;
+
+        // Update in-memory store
         let mut blocks = self.blocks.write().await;
         blocks.insert(block.r#type.clone(), block);
-        drop(blocks);
-        self.save().await
+
+        Ok(())
     }
 
     pub async fn delete(&self, block_type: &str) -> Result<bool, std::io::Error> {
         let mut blocks = self.blocks.write().await;
-        let existed = blocks.remove(block_type).is_some();
-        drop(blocks);
-        self.save().await?;
-        Ok(existed)
-    }
-
-    pub async fn load_default_blocks(&self) -> Result<(), std::io::Error> {
-        let default_blocks = vec![
-            BlockDefinition {
-                r#type: "ha_state_trigger".to_string(),
-                message0: "When entity %1 changes to %2".to_string(),
-                args0: vec![
-                    BlockArgument {
-                        r#type: "field_entity".to_string(),
-                        name: "ENTITY_ID".to_string(),
-                        default: "entity.id".to_string(),
-                    },
-                    BlockArgument {
-                        r#type: "field_input".to_string(),
-                        name: "STATE".to_string(),
-                        default: "state".to_string(),
-                    },
-                ],
-                previous_statement: Some(true),
-                next_statement: Some(true),
-                output: None,
-                colour: 230,
-                tooltip: "Triggers when an entity changes to a specific state".to_string(),
-                help_url: None,
-                extensions: Some(vec!["entity_state_extension".to_string()]),
-                mutator: None,
-                id: None,
-                category: Some("Triggers".to_string()),
-                created: None,
-                modified: None,
-            },
-            BlockDefinition {
-                r#type: "ha_time_trigger".to_string(),
-                message0: "At time %1".to_string(),
-                args0: vec![
-                    BlockArgument {
-                        r#type: "field_input".to_string(),
-                        name: "TIME".to_string(),
-                        default: "00:00".to_string(),
-                    },
-                ],
-                previous_statement: Some(true),
-                next_statement: Some(true),
-                output: None,
-                colour: 230,
-                tooltip: "Triggers at a specific time".to_string(),
-                help_url: None,
-                extensions: None,
-                mutator: None,
-                id: None,
-                category: Some("Triggers".to_string()),
-                created: None,
-                modified: None,
-            },
-            BlockDefinition {
-                r#type: "ha_state_condition".to_string(),
-                message0: "Entity %1 is %2".to_string(),
-                args0: vec![
-                    BlockArgument {
-                        r#type: "field_entity".to_string(),
-                        name: "ENTITY_ID".to_string(),
-                        default: "entity.id".to_string(),
-                    },
-                    BlockArgument {
-                        r#type: "field_input".to_string(),
-                        name: "STATE".to_string(),
-                        default: "state".to_string(),
-                    },
-                ],
-                previous_statement: None,
-                next_statement: None,
-                output: Some("Boolean".to_string()),
-                colour: 120,
-                tooltip: "Check if an entity is in a specific state".to_string(),
-                help_url: None,
-                extensions: Some(vec!["entity_state_extension".to_string()]),
-                mutator: None,
-                id: None,
-                category: Some("Conditions".to_string()),
-                created: None,
-                modified: None,
-            },
-            BlockDefinition {
-                r#type: "ha_time_condition".to_string(),
-                message0: "Time is between %1 and %2".to_string(),
-                args0: vec![
-                    BlockArgument {
-                        r#type: "field_input".to_string(),
-                        name: "START_TIME".to_string(),
-                        default: "00:00".to_string(),
-                    },
-                    BlockArgument {
-                        r#type: "field_input".to_string(),
-                        name: "END_TIME".to_string(),
-                        default: "23:59".to_string(),
-                    },
-                ],
-                previous_statement: None,
-                next_statement: None,
-                output: Some("Boolean".to_string()),
-                colour: 120,
-                tooltip: "Check if current time is within a specific range".to_string(),
-                help_url: None,
-                extensions: None,
-                mutator: None,
-                id: None,
-                category: Some("Conditions".to_string()),
-                created: None,
-                modified: None,
-            },
-            BlockDefinition {
-                r#type: "ha_call_service".to_string(),
-                message0: "Call service %1 with entity %2".to_string(),
-                args0: vec![
-                    BlockArgument {
-                        r#type: "field_input".to_string(),
-                        name: "SERVICE".to_string(),
-                        default: "domain.service".to_string(),
-                    },
-                    BlockArgument {
-                        r#type: "field_entity".to_string(),
-                        name: "ENTITY_ID".to_string(),
-                        default: "entity.id".to_string(),
-                    },
-                ],
-                previous_statement: Some(true),
-                next_statement: Some(true),
-                output: None,
-                colour: 60,
-                tooltip: "Call a Home Assistant service".to_string(),
-                help_url: None,
-                extensions: Some(vec!["entity_state_extension".to_string()]),
-                mutator: None,
-                id: None,
-                category: Some("Actions".to_string()),
-                created: None,
-                modified: None,
-            },
-            BlockDefinition {
-                r#type: "ha_set_state".to_string(),
-                message0: "Set %1 to %2".to_string(),
-                args0: vec![
-                    BlockArgument {
-                        r#type: "field_entity".to_string(),
-                        name: "ENTITY_ID".to_string(),
-                        default: "entity.id".to_string(),
-                    },
-                    BlockArgument {
-                        r#type: "field_input".to_string(),
-                        name: "STATE".to_string(),
-                        default: "state".to_string(),
-                    },
-                ],
-                previous_statement: Some(true),
-                next_statement: Some(true),
-                output: None,
-                colour: 60,
-                tooltip: "Set an entity to a specific state".to_string(),
-                help_url: None,
-                extensions: Some(vec!["entity_state_extension".to_string()]),
-                mutator: None,
-                id: None,
-                category: Some("Actions".to_string()),
-                created: None,
-                modified: None,
-            },
-        ];
-
-        let mut blocks = self.blocks.write().await;
-        for block in default_blocks {
-            blocks.insert(block.r#type.clone(), block);
+        if let Some(block) = blocks.remove(block_type) {
+            // Remove YAML file
+            let category_dir = match &block.category {
+                Some(category) => self.blocks_dir.join(category.to_lowercase()),
+                None => self.blocks_dir.join("custom"),
+            };
+            let file_path = category_dir.join(format!("{}.yaml", block_type));
+            if file_path.exists() {
+                fs::remove_file(file_path)?;
+            }
+            Ok(true)
+        } else {
+            Ok(false)
         }
-        drop(blocks);
-        self.save().await
     }
 }

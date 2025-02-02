@@ -1,0 +1,11 @@
+type: logic_negate
+message0: not %1
+args0:
+  - type: input_value
+    name: BOOL
+    check: Boolean
+output: Boolean
+colour: 210
+tooltip: Returns true if the input is false, and false if the input is true
+help_url: https://github.com/google/blockly/wiki/Logic#not
+category: Logic

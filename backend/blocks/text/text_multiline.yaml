@@ -1,0 +1,11 @@
+type: text_multiline
+message0: "%1"
+args0:
+  - type: field_multilinetext
+    name: TEXT
+    text: abc
+output: String
+colour: 160
+tooltip: A text block that can span multiple lines
+help_url: https://github.com/google/blockly/wiki/Text#text-blocks
+category: Text

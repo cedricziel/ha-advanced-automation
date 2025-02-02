@@ -1,0 +1,13 @@
+type: controls_flow_statements
+message0: "%1"
+args0:
+  - type: field_dropdown
+    name: FLOW
+    options:
+      - ["break out of loop", "BREAK"]
+      - ["continue with next iteration", "CONTINUE"]
+previous_statement: true
+colour: 120
+tooltip: Break out of a loop or continue with the next iteration
+help_url: https://github.com/google/blockly/wiki/Loops#break-out-of-a-loop
+category: Loops

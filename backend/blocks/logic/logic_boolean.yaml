@@ -1,0 +1,13 @@
+type: logic_boolean
+message0: "%1"
+args0:
+  - type: field_dropdown
+    name: BOOL
+    options:
+      - ["true", "TRUE"]
+      - ["false", "FALSE"]
+output: Boolean
+colour: 210
+tooltip: Returns either true or false
+help_url: https://github.com/google/blockly/wiki/Logic#values
+category: Logic

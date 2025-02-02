@@ -1,5 +1,4 @@
 import { BlocklyToolbox, BlockDefinition } from '../types/blockly';
-import { standardBlocks } from './standardBlocks';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 
@@ -13,7 +12,6 @@ export const blocklyService = {
     try {
       console.log('Fetching toolbox configuration from backend...', API_BASE_URL);
 
-      // Fetch custom blocks from backend
       let response;
       try {
         response = await fetch(`${API_BASE_URL}/api/blockly/toolbox`);
@@ -46,15 +44,15 @@ export const blocklyService = {
         throw new Error(`Failed to read response: ${textError instanceof Error ? textError.message : 'Unknown error'}`);
       }
 
-      let customConfig;
+      let config;
       try {
-        customConfig = JSON.parse(text);
+        config = JSON.parse(text);
         console.log('Successfully parsed JSON response');
-        console.log('Custom config structure:', {
-          hasToolbox: !!customConfig.toolbox,
-          toolboxKind: customConfig.toolbox?.kind,
-          numBlocks: customConfig.blocks?.length,
-          toolboxContents: customConfig.toolbox?.contents?.length
+        console.log('Config structure:', {
+          hasToolbox: !!config.toolbox,
+          toolboxKind: config.toolbox?.kind,
+          numBlocks: config.blocks?.length,
+          toolboxContents: config.toolbox?.contents?.length
         });
       } catch (error) {
         const parseError = error as Error;
@@ -63,48 +61,18 @@ export const blocklyService = {
         throw new Error(`Invalid JSON response from backend: ${parseError.message}`);
       }
 
-      if (!customConfig.toolbox || !customConfig.blocks) {
-        console.error('Invalid toolbox configuration:', customConfig);
+      if (!config.toolbox || !config.blocks) {
+        console.error('Invalid toolbox configuration:', config);
         throw new Error('Toolbox configuration is missing required fields');
       }
 
-      console.log('Standard blocks:', {
-        categories: standardBlocks.categories.length,
-        definitions: standardBlocks.definitions.length
-      });
-      console.log('Custom blocks:', {
-        categories: customConfig.toolbox.contents.length,
-        blocks: customConfig.blocks.length
-      });
-
-      // Combine standard blocks with custom blocks
-      const toolbox = {
-        kind: 'categoryToolbox',
-        contents: [
-          // Standard block categories
-          ...standardBlocks.categories,
-          // Separator
-          { kind: 'sep' },
-          // Custom block categories from backend
-          ...customConfig.toolbox.contents
-        ]
-      };
-
-      const result = {
-        toolbox,
-        blocks: [
-          ...standardBlocks.definitions,
-          ...customConfig.blocks
-        ]
-      };
-
       console.log('Final toolbox configuration:', {
-        kind: result.toolbox.kind,
-        numCategories: result.toolbox.contents.length,
-        numBlocks: result.blocks.length
+        kind: config.toolbox.kind,
+        numCategories: config.toolbox.contents.length,
+        numBlocks: config.blocks.length
       });
 
-      return result;
+      return config;
     } catch (error) {
       console.error('Error fetching toolbox config:', error);
       throw error;

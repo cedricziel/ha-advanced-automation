@@ -1,0 +1,14 @@
+type: math_random_int
+message0: random integer from %1 to %2
+args0:
+  - type: input_value
+    name: FROM
+    check: Number
+  - type: input_value
+    name: TO
+    check: Number
+output: Number
+colour: 230
+tooltip: Return a random integer between the two specified limits, inclusive
+help_url: https://github.com/google/blockly/wiki/Math#random-integer
+category: Math

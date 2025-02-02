@@ -1,0 +1,26 @@
+type: text_charAt
+message0: in text %1 get %2 %3
+args0:
+  - type: input_value
+    name: VALUE
+    check: String
+  - type: field_dropdown
+    name: WHERE
+    options:
+      - ["first", "FIRST"]
+      - ["last", "LAST"]
+      - ["random", "RANDOM"]
+      - ["#", "FROM_START"]
+      - ["# from end", "FROM_END"]
+  - type: input_value
+    name: AT
+    check: Number
+output: String
+colour: 160
+tooltip: >-
+  Returns the letter at the specified position. For '#', use a number to get
+  position from start (1 is first). For '# from end', count back from the end
+  (-1 is last)
+help_url: https://github.com/google/blockly/wiki/Text#extracting-text
+category: Text
+mutator: text_charAt_mutator

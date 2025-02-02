@@ -1,0 +1,19 @@
+type: controls_forEach
+message0: for each item %1 in list %2
+args0:
+  - type: field_variable
+    name: VAR
+    variable: item
+  - type: input_value
+    name: LIST
+    check: Array
+message1: do %1
+args1:
+  - type: input_statement
+    name: DO
+previous_statement: true
+next_statement: true
+colour: 120
+tooltip: Do some statements for each item in a list
+help_url: https://github.com/google/blockly/wiki/Loops#for-each
+category: Loops

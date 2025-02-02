@@ -1,0 +1,17 @@
+type: text_trim
+message0: trim %1 spaces from %2
+args0:
+  - type: field_dropdown
+    name: MODE
+    options:
+      - ["both sides of", "BOTH"]
+      - ["left side of", "LEFT"]
+      - ["right side of", "RIGHT"]
+  - type: input_value
+    name: TEXT
+    check: String
+output: String
+colour: 160
+tooltip: Return a copy of the text with spaces removed from one or both ends
+help_url: https://github.com/google/blockly/wiki/Text#trimming-removing-spaces
+category: Text

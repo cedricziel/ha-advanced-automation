@@ -1,0 +1,22 @@
+type: math_arithmetic
+message0: "%1 %2 %3"
+args0:
+  - type: input_value
+    name: A
+    check: Number
+  - type: field_dropdown
+    name: OP
+    options:
+      - ["+", "ADD"]
+      - ["-", "MINUS"]
+      - ["×", "MULTIPLY"]
+      - ["÷", "DIVIDE"]
+      - ["^", "POWER"]
+  - type: input_value
+    name: B
+    check: Number
+output: Number
+colour: 230
+tooltip: Do arithmetic with two numbers
+help_url: https://github.com/google/blockly/wiki/Math#arithmetic
+category: Math

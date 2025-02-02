@@ -1,0 +1,11 @@
+type: text
+message0: "%1"
+args0:
+  - type: field_input
+    name: TEXT
+    text: abc
+output: String
+colour: 160
+tooltip: A letter, word, or line of text
+help_url: https://github.com/google/blockly/wiki/Text#text-blocks
+category: Text

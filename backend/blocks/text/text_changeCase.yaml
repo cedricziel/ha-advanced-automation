@@ -1,0 +1,20 @@
+type: text_changeCase
+message0: to %1 %2
+args0:
+  - type: field_dropdown
+    name: CASE
+    options:
+      - ["UPPERCASE", "UPPERCASE"]
+      - ["lowercase", "LOWERCASE"]
+      - ["Title Case", "TITLECASE"]
+  - type: input_value
+    name: TEXT
+    check: String
+output: String
+colour: 160
+tooltip: >-
+  Return a copy of the text in a different case. UPPERCASE makes all letters
+  capital. lowercase makes all letters small. Title Case makes the first
+  letter of each word capital
+help_url: https://github.com/google/blockly/wiki/Text#adjusting-text-case
+category: Text

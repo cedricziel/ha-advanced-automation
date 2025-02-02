@@ -1,0 +1,12 @@
+type: text_join
+message0: create text with
+message1: "%1"
+args1:
+  - type: input_statement
+    name: ADD0
+output: String
+colour: 160
+tooltip: Create a piece of text by joining together any number of items
+help_url: https://github.com/google/blockly/wiki/Text#text-creation
+category: Text
+mutator: text_join_mutator
