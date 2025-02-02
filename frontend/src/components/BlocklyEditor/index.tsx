@@ -36,6 +36,9 @@ declare global {
 }
 window.Blockly = Blockly;
 
+// Set Blockly language
+window.Blockly.setLocale(En as unknown as { [key: string]: string });
+
 interface BlocklyEditorProps {
   initialState?: WorkspaceState;
   value?: WorkspaceState;
@@ -188,8 +191,6 @@ class BlocklyEditor extends React.Component<
       console.log("Injecting Blockly workspace...");
       const workspace = window.Blockly.inject(this.blocklyDiv, config);
       console.log("Workspace created:", workspace);
-
-      // Set Blockly language
 
       registerFieldMultilineInput();
 
