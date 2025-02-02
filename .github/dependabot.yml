@@ -22,6 +22,9 @@ updates:
     reviewers:
       - cedricziel
     groups:
+      mui:
+        patterns:
+          - "@mui/*"
       react:
         patterns:
           - "react"
