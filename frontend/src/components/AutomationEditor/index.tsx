@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, memo, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, memo, useMemo, useRef, JSX } from 'react';
 import './AutomationEditor.css';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
@@ -17,6 +17,7 @@ import {
 import { StateChangeInspector } from '../StateChangeInspector';
 import Split from 'react-split';
 import BlocklyEditor from '../BlocklyEditor';
+import { BlocklyErrorBoundary } from '../BlocklyEditor/BlocklyErrorBoundary';
 import { automationService } from '../../services/automationService';
 import { blocklyService } from '../../services/blocklyService';
 import { AutomationCreateRequest, AutomationUpdateRequest, WorkspaceChangeData, TriggerDefinition, ConditionDefinition } from '../../types/automation';
@@ -272,14 +273,15 @@ const loadToolbox = useCallback(async () => {
           className="split"
         >
           <div className="blockly-container">
-            <BlocklyEditor
-              key={id} // Use id as key to ensure proper remounting when switching automations
-              initialState={loadedAutomation?.workspace}
-              ref={blocklyEditorRef}
-              onError={error => setError(error.message)}
-              toolbox={memoizedToolbox}
-              readOnly={false}
-              workspaceConfiguration={{
+            <BlocklyErrorBoundary>
+              <BlocklyEditor
+                key={id} // Use id as key to ensure proper remounting when switching automations
+                initialState={loadedAutomation?.workspace}
+                ref={blocklyEditorRef}
+                onError={error => setError(error.message)}
+                toolbox={memoizedToolbox}
+                readOnly={false}
+                workspaceConfiguration={{
                 grid: {
                   spacing: 20,
                   length: 3,
@@ -300,8 +302,9 @@ const loadToolbox = useCallback(async () => {
                   scaleSpeed: 1.2,
                 },
                 trashcan: true
-              }}
-            />
+                }}
+              />
+            </BlocklyErrorBoundary>
           </div>
 
           <div className="sidebar">
