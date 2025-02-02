@@ -8,6 +8,7 @@ import * as Blockly from 'blockly/core';
 import 'blockly/blocks';
 import 'blockly/javascript';
 import 'blockly/msg/en';
+import '../../extensions/entity_state_extension';
 
 // Ensure Blockly is available globally
 declare global {

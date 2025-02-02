@@ -1,7 +1,0 @@
-type: math_random_float
-message0: random fraction
-output: Number
-colour: 230
-tooltip: Return a random fraction between 0.0 (inclusive) and 1.0 (exclusive)
-help_url: https://github.com/google/blockly/wiki/Math#random-fraction
-category: Math
