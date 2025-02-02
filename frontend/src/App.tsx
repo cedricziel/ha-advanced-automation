@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from
 import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
 import { AutomationsList } from './components/AutomationsList';
 import { AutomationEditor } from './components/AutomationEditor';
+import BlocklyEditorTest from './components/BlocklyEditor/BlocklyEditorTest';
 import { haClient } from './services/haClient';
 import {
   AppBar,
@@ -72,7 +73,14 @@ const AppContent: React.FC<AppContentProps> = ({ connectionStatus }) => {
             <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
               Home Assistant Advanced Automation
             </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Button
+              color="inherit"
+              onClick={() => navigate('/blockly-test')}
+              sx={{ mr: 2 }}
+            >
+              Blockly Test
+            </Button>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <Box
                   sx={{
                     width: 10,
@@ -94,6 +102,7 @@ const AppContent: React.FC<AppContentProps> = ({ connectionStatus }) => {
               <Route path="/automations" element={<AutomationsList />} />
               <Route path="/automations/new" element={<AutomationEditor />} />
               <Route path="/automations/:id/edit" element={<AutomationEditor />} />
+              <Route path="/blockly-test" element={<BlocklyEditorTest />} />
             </Routes>
           </Container>
         </Box>

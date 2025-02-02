@@ -1,0 +1,17 @@
+---
+type: ha_state_trigger
+message0: "When entity %1 changes to %2"
+args0:
+  - type: field_entity
+    name: ENTITY_ID
+    default: entity.id
+  - type: field_input
+    name: STATE
+    default: state
+previous_statement: true
+next_statement: true
+colour: 230
+tooltip: "Triggers when an entity changes to a specific state"
+extensions:
+  - entity_state_extension
+category: Triggers

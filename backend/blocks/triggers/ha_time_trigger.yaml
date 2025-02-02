@@ -1,0 +1,12 @@
+---
+type: ha_time_trigger
+message0: "At time %1"
+args0:
+  - type: field_input
+    name: TIME
+    default: "00:00"
+previous_statement: true
+next_statement: true
+colour: 230
+tooltip: "Triggers at a specific time"
+category: Triggers

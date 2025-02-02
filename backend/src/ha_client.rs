@@ -15,9 +15,30 @@ pub struct EntityState {
     pub last_updated: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ActionField {
+    pub name: String,
+    pub description: Option<String>,
+    pub required: Option<bool>,
+    pub selector: Option<Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Action {
+    #[serde(skip_deserializing)]
+    pub domain: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub target: Option<Value>,
+    pub fields: HashMap<String, ActionField>,
+    #[serde(skip_deserializing)]
+    pub id: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct HaClient {
     states: Arc<RwLock<HashMap<String, EntityState>>>,
+    actions: Arc<RwLock<HashMap<String, Action>>>,
     state_tx: broadcast::Sender<(String, EntityState)>,
     message_id: Arc<AtomicI32>,
 }
@@ -63,6 +84,7 @@ impl HaClient {
         let (state_tx, _) = broadcast::channel(100);
         Self {
             states: Arc::new(RwLock::new(HashMap::new())),
+            actions: Arc::new(RwLock::new(HashMap::new())),
             state_tx,
             message_id: Arc::new(AtomicI32::new(1)),
         }
@@ -121,7 +143,17 @@ impl HaClient {
         })?;
         write.send(Message::Text(get_states_msg.into())).await?;
 
+        // Get available actions
+        let actions_id = self.next_id();
+        let get_actions_msg = serde_json::to_string(&HaMessage {
+            id: actions_id,
+            msg_type: "get_services".to_string(),
+            event_type: None,
+        })?;
+        write.send(Message::Text(get_actions_msg.into())).await?;
+
         let states = self.states.clone();
+        let actions = self.actions.clone();
         let state_tx = self.state_tx.clone();
 
         // Handle incoming messages
@@ -136,7 +168,7 @@ impl HaClient {
                         };
 
                         // Handle get_states response
-                        if json["type"] == "result" {
+                        if json["type"] == "result" && json["id"] == states_id {
                             if let Some(result) = json["result"].as_array() {
                                 let mut states_map = states.write().await;
                                 for state in result {
@@ -145,6 +177,32 @@ impl HaClient {
                                         serde_json::from_value::<EntityState>(state.clone()).ok()
                                     ) {
                                         states_map.insert(entity_id.to_string(), state_obj);
+                                    }
+                                }
+                            }
+                            continue;
+                        }
+
+                        // Handle get_services response
+                        if json["type"] == "result" && json["id"] == actions_id {
+                            tracing::debug!("Got services response: {}", json);
+                            if let Some(result) = json["result"].as_object() {
+                                let mut actions_map = actions.write().await;
+                                for (domain, domain_services) in result {
+                                    if let Some(services) = domain_services.as_object() {
+                                        for (service_name, service_data) in services {
+                                            match serde_json::from_value::<Action>(service_data.clone()) {
+                                                Ok(mut action) => {
+                                                    action.domain = domain.clone();
+                                                    action.id = format!("{}.{}", domain, service_name);
+                                                    tracing::debug!("Added action: {}.{}", domain, service_name);
+                                                    actions_map.insert(action.id.clone(), action);
+                                                }
+                                                Err(e) => {
+                                                    tracing::error!("Failed to parse service {}.{}: {}", domain, service_name, e);
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -181,6 +239,10 @@ impl HaClient {
 
     pub async fn get_all_states(&self) -> HashMap<String, EntityState> {
         self.states.read().await.clone()
+    }
+
+    pub async fn get_all_actions(&self) -> HashMap<String, Action> {
+        self.actions.read().await.clone()
     }
 
     pub fn subscribe_to_states(&self) -> broadcast::Receiver<(String, EntityState)> {

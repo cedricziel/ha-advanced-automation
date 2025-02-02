@@ -1,0 +1,13 @@
+type: ha_time_condition
+message0: "Time is between %1 and %2"
+args0:
+  - type: field_input
+    name: START_TIME
+    default: "00:00"
+  - type: field_input
+    name: END_TIME
+    default: "23:59"
+output: Boolean
+colour: 120
+tooltip: "Check if current time is within a specific range"
+category: Conditions
