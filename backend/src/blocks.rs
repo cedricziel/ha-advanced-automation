@@ -23,7 +23,8 @@ pub struct BlockArgument {
 pub struct BlockDefinition {
     pub r#type: String,
     pub message0: String,
-    pub args0: Vec<BlockArgument>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub args0: Option<Vec<BlockArgument>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub message1: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]

@@ -95,8 +95,8 @@ pub fn create_default_toolbox(blocks: &[BlockDefinition]) -> BlocklyToolbox {
         toolbox.add_category(ToolboxCategory {
             kind: "category".to_string(),
             name: "Triggers".to_string(),
-            categorystyle: Some("trigger_category".to_string()),
-            colour: None,
+            categorystyle: None,
+            colour: Some("#5b80a5".to_string()),  // 230 hue -> blue
             custom: None,
             contents: trigger_blocks,
         });
@@ -113,8 +113,8 @@ pub fn create_default_toolbox(blocks: &[BlockDefinition]) -> BlocklyToolbox {
         toolbox.add_category(ToolboxCategory {
             kind: "category".to_string(),
             name: "Conditions".to_string(),
-            categorystyle: Some("condition_category".to_string()),
-            colour: None,
+            categorystyle: None,
+            colour: Some("#59a869".to_string()),  // 120 hue -> green
             custom: None,
             contents: condition_blocks,
         });
@@ -131,8 +131,8 @@ pub fn create_default_toolbox(blocks: &[BlockDefinition]) -> BlocklyToolbox {
         toolbox.add_category(ToolboxCategory {
             kind: "category".to_string(),
             name: "Actions".to_string(),
-            categorystyle: Some("action_category".to_string()),
-            colour: None,
+            categorystyle: None,
+            colour: Some("#a5995b".to_string()),  // 60 hue -> yellow
             custom: None,
             contents: action_blocks,
         });

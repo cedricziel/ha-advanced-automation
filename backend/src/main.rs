@@ -57,7 +57,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let automation_store = automation::AutomationStore::new().await?;
     // Initialize block store
     let block_store = blocks::BlockStore::new().await?;
-    block_store.load_default_blocks().await?;
 
     let state = Arc::new(AppState {
         ha_client: ha_client.clone(),
