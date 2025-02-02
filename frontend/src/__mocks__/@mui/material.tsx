@@ -1,7 +1,7 @@
 import React from 'react';
 
-const createMuiComponent = (name: string) => {
-  return React.forwardRef((props: any, ref) => {
+const createMuiComponent = <P extends object>(name: string) => {
+  return React.forwardRef<HTMLElement, P>((props, ref) => {
     return React.createElement(name, { ...props, ref });
   });
 };
