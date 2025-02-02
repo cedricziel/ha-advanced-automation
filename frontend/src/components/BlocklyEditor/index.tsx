@@ -22,7 +22,6 @@ window.Blockly = Blockly;
 interface BlocklyEditorProps {
   initialState?: WorkspaceState;
   value?: WorkspaceState;
-  onChange?: (state: WorkspaceState) => void;
   onError?: (error: Error) => void;
   toolbox?: BlocklyToolbox;
   readOnly?: boolean;
@@ -34,20 +33,20 @@ interface BlocklyEditorState {
   workspace: any | null;
   isBlocklyLoaded: boolean;
   isWorkspaceInitialized: boolean;
+  hasUnsavedChanges: boolean;
 }
 
 class BlocklyEditor extends React.Component<BlocklyEditorProps, BlocklyEditorState> {
   private blocklyDiv: HTMLElement | null = null;
   private resizeObserver: ResizeObserver | null = null;
-  private _saveTimeout: ReturnType<typeof setTimeout> | null = null;
-
   constructor(props: BlocklyEditorProps) {
     super(props);
     this.state = {
       error: null,
       workspace: null,
       isBlocklyLoaded: false,
-      isWorkspaceInitialized: false
+      isWorkspaceInitialized: false,
+      hasUnsavedChanges: false
     };
   }
 
@@ -80,10 +79,6 @@ class BlocklyEditor extends React.Component<BlocklyEditorProps, BlocklyEditorSta
   componentWillUnmount() {
     this.disposeWorkspace();
     this.cleanupResizeObserver();
-    if (this._saveTimeout) {
-      clearTimeout(this._saveTimeout);
-      this._saveTimeout = null;
-    }
   }
 
   componentDidUpdate(prevProps: BlocklyEditorProps) {
@@ -169,7 +164,7 @@ class BlocklyEditor extends React.Component<BlocklyEditorProps, BlocklyEditorSta
 
       workspace.addChangeListener(() => {
         if (this.state.workspace) {
-          this.saveWorkspaceState();
+          this.setState({ hasUnsavedChanges: true });
         }
       });
 
@@ -303,81 +298,52 @@ class BlocklyEditor extends React.Component<BlocklyEditorProps, BlocklyEditorSta
     }
   }
 
-  private saveWorkspaceState() {
-    console.log('Attempting to save workspace state...');
+  public getWorkspaceState(): WorkspaceState | null {
+    console.log('Getting workspace state...');
 
     if (!this.state.workspace) {
-      console.log('No workspace available, skipping state save');
-      return;
+      console.log('No workspace available');
+      return null;
     }
 
-    // Debounce rapid changes
-    if (this._saveTimeout) {
-      clearTimeout(this._saveTimeout);
-    }
+    try {
+      console.log('Serializing workspace blocks...');
+      const blocks = window.Blockly.serialization.workspaces.save(this.state.workspace);
+      console.log('Serialized blocks:', blocks);
 
-    this._saveTimeout = setTimeout(() => {
-      try {
-        console.log('Serializing workspace blocks...');
-        let blocks;
-        try {
-          blocks = window.Blockly.serialization.workspaces.save(this.state.workspace);
-          console.log('Serialized blocks:', blocks);
-        } catch (serializeError) {
-          console.error('Failed to serialize workspace:', serializeError);
-          throw new Error(`Workspace serialization failed: ${serializeError instanceof Error ? serializeError.message : 'Unknown error'}`);
-        }
+      console.log('Getting workspace variables...');
+      const variables = this.state.workspace.getAllVariables();
+      console.log('Raw variables:', variables);
 
-        console.log('Getting workspace variables...');
-        const variables = this.state.workspace.getAllVariables();
-        console.log('Raw variables:', variables);
+      const mappedVariables = variables.map((v: { getId: () => string; name: string; type: string }) => ({
+        id: v.getId(),
+        name: v.name,
+        type: v.type
+      }));
+      console.log('Processed variables:', mappedVariables);
 
-        const mappedVariables = variables.map((v: { getId: () => string; name: string; type: string }) => {
-          console.log('Processing variable:', v);
-          try {
-            return {
-              id: v.getId(),
-              name: v.name,
-              type: v.type
-            };
-          } catch (varError) {
-            console.error(`Failed to process variable ${v}:`, varError);
-            throw new Error(`Variable processing failed: ${varError instanceof Error ? varError.message : 'Unknown error'}`);
-          }
-        });
-        console.log('Processed variables:', mappedVariables);
+      const state: WorkspaceState = {
+        blocks,
+        variables: mappedVariables
+      };
+      console.log('Final workspace state:', state);
 
-        const state: WorkspaceState = {
-          blocks,
-          variables: mappedVariables
-        };
-        console.log('Final workspace state:', state);
+      this.setState({ hasUnsavedChanges: false });
+      return state;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Error getting workspace state:', {
+        error,
+        message: errorMessage,
+        stack: error instanceof Error ? error.stack : undefined
+      });
 
-        if (this.props.onChange) {
-          console.log('Calling onChange handler with state...');
-          this.props.onChange(state);
-          console.log('onChange handler completed');
-        } else {
-          console.log('No onChange handler provided, skipping state update');
-        }
-
-        console.log('Workspace state saved successfully');
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        console.error('Error saving workspace state:', {
-          error,
-          message: errorMessage,
-          stack: error instanceof Error ? error.stack : undefined
-        });
-
-        if (this.props.onError) {
-          const errorObj = error instanceof Error ? error : new Error('Failed to save workspace state');
-          console.log('Calling onError handler...');
-          this.props.onError(errorObj);
-          console.log('onError handler completed');
-        }
+      if (this.props.onError) {
+        const errorObj = error instanceof Error ? error : new Error('Failed to get workspace state');
+        this.props.onError(errorObj);
       }
-    }, 300); // Debounce for 300ms
+      return null;
+    }
   }
 
   private loadWorkspaceState() {

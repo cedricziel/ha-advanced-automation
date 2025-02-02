@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import BlocklyEditor from './index';
 import { blocklyService } from '../../services/blocklyService';
 import { BlocklyToolbox, WorkspaceState } from '../../types/blockly';
+import { Button, Box } from '@mui/material';
 
 const BlocklyEditorTest: React.FC = () => {
   const [toolbox, setToolbox] = useState<BlocklyToolbox | undefined>();
   const [error, setError] = useState<string | null>(null);
-  const [workspaceState, setWorkspaceState] = useState<WorkspaceState | undefined>();
   const [isLoading, setIsLoading] = useState(true);
+  const blocklyEditorRef = useRef<BlocklyEditor>(null);
 
   useEffect(() => {
     const loadToolbox = async () => {
@@ -64,14 +65,16 @@ const BlocklyEditorTest: React.FC = () => {
     loadToolbox();
   }, []);
 
-  const handleChange = (state: WorkspaceState) => {
-    console.log('Workspace state changed:', state);
-    setWorkspaceState(state);
-  };
-
   const handleError = (error: Error) => {
     console.error('Blockly editor error:', error);
     setError(error.message);
+  };
+
+  const handleSave = () => {
+    const state = blocklyEditorRef.current?.getWorkspaceState();
+    if (state) {
+      console.log('Current workspace state:', state);
+    }
   };
 
   if (error) {
@@ -109,14 +112,20 @@ const BlocklyEditorTest: React.FC = () => {
   }
 
   return (
-    <div style={{ width: '100%', height: '600px' }}>
-      <BlocklyEditor
-        toolbox={toolbox}
-        value={workspaceState}
-        onChange={handleChange}
-        onError={handleError}
-      />
-    </div>
+    <Box sx={{ width: '100%', height: '600px', display: 'flex', flexDirection: 'column' }}>
+      <Box sx={{ p: 2 }}>
+        <Button variant="contained" onClick={handleSave}>
+          Save Current State
+        </Button>
+      </Box>
+      <Box sx={{ flex: 1 }}>
+        <BlocklyEditor
+          ref={blocklyEditorRef}
+          toolbox={toolbox}
+          onError={handleError}
+        />
+      </Box>
+    </Box>
   );
 };
 
