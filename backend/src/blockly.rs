@@ -69,6 +69,98 @@ impl BlocklyToolbox {
 pub fn create_default_toolbox(blocks: &[BlockDefinition]) -> BlocklyToolbox {
     let mut toolbox = BlocklyToolbox::new();
 
+    // Add standard Blockly categories
+    toolbox.add_category(ToolboxCategory {
+        kind: "category".to_string(),
+        name: "Logic".to_string(),
+        categorystyle: Some("logic_category".to_string()),
+        colour: None,
+        custom: None,
+        contents: vec![
+            ToolboxItem::Block { r#type: "controls_if".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "logic_compare".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "logic_operation".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "logic_negate".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "logic_boolean".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "logic_ternary".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+        ],
+    });
+
+    toolbox.add_category(ToolboxCategory {
+        kind: "category".to_string(),
+        name: "Loops".to_string(),
+        categorystyle: Some("loop_category".to_string()),
+        colour: None,
+        custom: None,
+        contents: vec![
+            ToolboxItem::Block { r#type: "controls_repeat_ext".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "controls_whileUntil".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "controls_for".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "controls_forEach".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "controls_flow_statements".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+        ],
+    });
+
+    toolbox.add_category(ToolboxCategory {
+        kind: "category".to_string(),
+        name: "Math".to_string(),
+        categorystyle: Some("math_category".to_string()),
+        colour: None,
+        custom: None,
+        contents: vec![
+            ToolboxItem::Block { r#type: "math_number".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "math_arithmetic".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "math_single".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "math_round".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "math_modulo".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "math_constrain".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "math_random_int".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "math_random_float".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+        ],
+    });
+
+    toolbox.add_category(ToolboxCategory {
+        kind: "category".to_string(),
+        name: "Lists".to_string(),
+        categorystyle: Some("list_category".to_string()),
+        colour: None,
+        custom: None,
+        contents: vec![
+            ToolboxItem::Block { r#type: "lists_create_empty".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "lists_create_with".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "lists_repeat".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "lists_length".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "lists_isEmpty".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "lists_indexOf".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "lists_getIndex".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "lists_setIndex".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "lists_getSublist".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "lists_sort".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "lists_reverse".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+        ],
+    });
+
+    toolbox.add_category(ToolboxCategory {
+        kind: "category".to_string(),
+        name: "Text".to_string(),
+        categorystyle: Some("text_category".to_string()),
+        colour: None,
+        custom: None,
+        contents: vec![
+            ToolboxItem::Block { r#type: "text".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "text_multiline".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "text_join".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "text_append".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "text_length".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "text_isEmpty".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "text_indexOf".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "text_charAt".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "text_getSubstring".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "text_changeCase".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "text_trim".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+        ],
+    });
+
     // Helper function to create block items
     let create_block_item = |block: &BlockDefinition| ToolboxItem::Block {
         r#type: block.r#type.clone(),

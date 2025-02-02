@@ -7,8 +7,9 @@ import './BlocklyEditor.css';
 import * as Blockly from 'blockly/core';
 import 'blockly/blocks';
 import 'blockly/javascript';
-import 'blockly/msg/en';
+import * as En from 'blockly/msg/en';
 import '../../extensions/entity_state_extension';
+import {registerFieldMultilineInput} from '@blockly/field-multilineinput';
 
 // Ensure Blockly is available globally
 declare global {
@@ -161,6 +162,11 @@ class BlocklyEditor extends React.Component<BlocklyEditorProps, BlocklyEditorSta
       const workspace = window.Blockly.inject(this.blocklyDiv, config);
       console.log('Workspace created:', workspace);
 
+      // Set Blockly language
+      window.Blockly.setLocale(En as any);
+
+      registerFieldMultilineInput();
+
       workspace.addChangeListener(() => {
         if (this.state.workspace) {
           this.saveWorkspaceState();
@@ -265,7 +271,10 @@ class BlocklyEditor extends React.Component<BlocklyEditorProps, BlocklyEditorSta
       // Only register/update custom blocks (skip built-in blocks)
       console.log('Registering/updating custom blocks...');
       if (this.props.toolbox?.blocks) {
-        const customBlocks = this.props.toolbox.blocks.filter(block => !block.type.startsWith('logic_'));
+        const standardPrefixes = ['logic_', 'controls_', 'math_', 'text_', 'lists_'];
+        const customBlocks = this.props.toolbox.blocks.filter(block =>
+          !standardPrefixes.some(prefix => block.type.startsWith(prefix))
+        );
         this.props.toolbox.blocks = customBlocks;
         this.registerBlocks();
       }
