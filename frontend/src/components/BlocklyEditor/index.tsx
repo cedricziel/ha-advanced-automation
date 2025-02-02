@@ -13,6 +13,12 @@ import '../../extensions/field_entity';
 import '../../extensions/field_action';
 import {registerFieldMultilineInput} from '@blockly/field-multilineinput';
 
+import {
+  ContinuousToolbox,
+  ContinuousFlyout,
+  ContinuousMetrics,
+} from '@blockly/continuous-toolbox';
+
 // Ensure Blockly is available globally
 declare global {
   interface Window {
@@ -151,8 +157,13 @@ class BlocklyEditor extends React.Component<BlocklyEditorProps, BlocklyEditorSta
 
       const config = {
         ...this.getWorkspaceConfig(),
+        plugins: {
+          toolbox: ContinuousToolbox,
+          flyoutsVerticalToolbox: ContinuousFlyout,
+          metricsManager: ContinuousMetrics,
+        },
         readOnly: this.props.readOnly,
-        toolbox: this.props.toolbox
+        toolbox: this.props.toolbox,
       };
 
       console.log('Injecting Blockly workspace...');

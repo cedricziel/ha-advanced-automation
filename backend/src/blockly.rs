@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use crate::blocks::{BlockDefinition};
+use crate::blocks::BlockDefinition;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolboxCategory {
@@ -148,7 +148,6 @@ pub fn create_default_toolbox(blocks: &[BlockDefinition]) -> BlocklyToolbox {
         custom: None,
         contents: vec![
             ToolboxItem::Block { r#type: "text".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
-            ToolboxItem::Block { r#type: "text_multiline".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
             ToolboxItem::Block { r#type: "text_join".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
             ToolboxItem::Block { r#type: "text_append".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
             ToolboxItem::Block { r#type: "text_length".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
@@ -158,6 +157,43 @@ pub fn create_default_toolbox(blocks: &[BlockDefinition]) -> BlocklyToolbox {
             ToolboxItem::Block { r#type: "text_getSubstring".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
             ToolboxItem::Block { r#type: "text_changeCase".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
             ToolboxItem::Block { r#type: "text_trim".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "text_print".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "text_prompt_ext".to_string(), disabled: Some(true), gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "text_prompt".to_string(), disabled: Some(true), gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "text_count".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "text_replace".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "text_reverse".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+        ],
+    });
+
+    toolbox.add_category(ToolboxCategory {
+        kind: "category".to_string(),
+        name: "Variables".to_string(),
+        categorystyle: Some("variable_category".to_string()),
+        colour: None,
+        custom: None,
+        contents: vec![
+            ToolboxItem::Block { r#type: "variables_get".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "variables_set".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "variables_get_dynamic".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "variables_set_dynamic".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+        ],
+    });
+
+    toolbox.add_category(ToolboxCategory {
+        kind: "category".to_string(),
+        name: "Procedures".to_string(),
+        categorystyle: Some("procedure_category".to_string()),
+        colour: None,
+        custom: None,
+        contents: vec![
+            ToolboxItem::Block { r#type: "procedures_defreturn".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "procedures_defnoreturn".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "procedures_callreturn".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "procedures_callnoreturn".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "procedures_ifreturn".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "procedures_mutatorarg".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
+            ToolboxItem::Block { r#type: "procedures_mutatorcontainer".to_string(), disabled: None, gap: None, fields: None, inputs: None, mutation: None },
         ],
     });
 

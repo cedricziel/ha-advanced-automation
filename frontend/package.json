@@ -2,7 +2,11 @@
   "name": "frontend",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "dependencies": {
+    "@blockly/continuous-toolbox": "^6.0.12",
     "@blockly/field-multilineinput": "^5.0.13",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
