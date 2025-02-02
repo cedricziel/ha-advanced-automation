@@ -21,6 +21,11 @@ updates:
       - cedricziel
     reviewers:
       - cedricziel
+    groups:
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
 
   # Backend Cargo dependencies
   - package-ecosystem: "cargo"
