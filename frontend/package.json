@@ -23,7 +23,7 @@
     "start": "vite",
     "build": "vite build && rm -rf ../backend/static/* && cp -r build/* ../backend/static/",
     "test": "jest",
-    "eject": "react-scripts eject",
+    "lint": "eslint .",
     "watch": "react-scripts build --watch & nodemon --watch build --exec \"rm -rf ../backend/static/* && cp -r build/* ../backend/static/\"",
     "dev": "vite"
   },
