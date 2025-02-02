@@ -2,26 +2,48 @@ import { haClient } from '../haClient';
 import type { EntityState, HAAction } from '../haClient';
 
 describe('HAClient', () => {
-  let mockWebSocket: any;
+  let mockWebSocket: WebSocket;
   let fetchSpy: jest.SpyInstance;
   let consoleErrorSpy: jest.SpyInstance;
   let mockStates: Record<string, EntityState>;
   let mockActions: Record<string, HAAction>;
+  let mockReadyState: number;
 
   beforeEach(() => {
+    mockReadyState = WebSocket.CLOSED;
+
     // Mock WebSocket
-    mockWebSocket = {
-      readyState: WebSocket.CLOSED,
+    const mockWS = {
       close: jest.fn(),
       send: jest.fn(),
-      onopen: null as any,
-      onclose: null as any,
-      onmessage: null as any,
-      onerror: null as any,
+      onopen: null,
+      onclose: null,
+      onmessage: null,
+      onerror: null,
+      CONNECTING: 0,
+      OPEN: 1,
+      CLOSING: 2,
+      CLOSED: 3,
+      url: '',
+      binaryType: 'blob',
+      bufferedAmount: 0,
+      extensions: '',
+      protocol: '',
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      dispatchEvent: jest.fn()
     };
 
+    // Add read-only readyState property
+    Object.defineProperty(mockWS, 'readyState', {
+      get: () => mockReadyState,
+      configurable: true
+    });
+
+    mockWebSocket = mockWS as unknown as WebSocket;
+
     // Mock window.WebSocket
-    (global as any).WebSocket = jest.fn(() => mockWebSocket);
+    (global as unknown as { WebSocket: unknown }).WebSocket = jest.fn(() => mockWebSocket);
 
     // Mock fetch
     fetchSpy = jest.spyOn(global, 'fetch');
@@ -74,8 +96,8 @@ describe('HAClient', () => {
       } as Response);
 
       // Simulate successful connection
-      mockWebSocket.readyState = WebSocket.OPEN;
-      await mockWebSocket.onopen();
+      mockReadyState = WebSocket.OPEN;
+      await mockWebSocket.onopen?.({} as Event);
 
       await connectPromise;
 
@@ -101,11 +123,11 @@ describe('HAClient', () => {
       const connectPromise = haClient.connect();
 
       // Simulate WebSocket error
-      mockWebSocket.onerror(new Error('WebSocket error'));
+      mockWebSocket.onerror?.(new Event('error'));
 
       await expect(connectPromise).rejects.toThrow();
       expect(mockWebSocket.close).toHaveBeenCalled();
-      expect(consoleErrorSpy).toHaveBeenCalledWith('WebSocket error:', expect.any(Error));
+      expect(consoleErrorSpy).toHaveBeenCalledWith('WebSocket error:', expect.any(Event));
     });
   });
 
@@ -117,8 +139,8 @@ describe('HAClient', () => {
       } as Response);
 
       const connectPromise = haClient.connect();
-      mockWebSocket.readyState = WebSocket.OPEN;
-      await mockWebSocket.onopen();
+      mockReadyState = WebSocket.OPEN;
+      await mockWebSocket.onopen?.({} as Event);
       await connectPromise;
     });
 
@@ -127,7 +149,7 @@ describe('HAClient', () => {
       haClient.onStateChanged(callback);
 
       // Simulate state change message
-      mockWebSocket.onmessage({
+      mockWebSocket.onmessage?.({
         data: JSON.stringify({
           type: 'state_changed',
           entity_id: 'light.living_room',
@@ -137,7 +159,7 @@ describe('HAClient', () => {
             last_updated: '2024-02-02T12:01:00Z'
           }
         })
-      });
+      } as MessageEvent);
 
       expect(callback).toHaveBeenCalledWith(
         'light.living_room',
@@ -214,15 +236,15 @@ describe('HAClient', () => {
         ok: true,
         json: () => Promise.resolve(mockStates)
       } as Response);
-      mockWebSocket.readyState = WebSocket.OPEN;
-      await mockWebSocket.onopen();
+      mockReadyState = WebSocket.OPEN;
+      await mockWebSocket.onopen?.({} as Event);
       await connectPromise;
 
       // Reset WebSocket mock for reconnection
-      (global as any).WebSocket.mockClear();
+      (global as unknown as { WebSocket: unknown }).WebSocket = jest.fn(() => mockWebSocket);
 
       // Simulate connection close
-      mockWebSocket.onclose();
+      mockWebSocket.onclose?.({} as CloseEvent);
 
       // Advance timer to trigger reconnection
       jest.advanceTimersByTime(5000);
@@ -241,17 +263,17 @@ describe('HAClient', () => {
         ok: true,
         json: () => Promise.resolve(mockStates)
       } as Response);
-      mockWebSocket.readyState = WebSocket.OPEN;
-      await mockWebSocket.onopen();
+      mockReadyState = WebSocket.OPEN;
+      await mockWebSocket.onopen?.({} as Event);
       await connectPromise;
 
       // Reset WebSocket mock for reconnection
-      (global as any).WebSocket.mockClear();
+      (global as unknown as { WebSocket: unknown }).WebSocket = jest.fn(() => mockWebSocket);
 
       // Simulate multiple connection closes
-      mockWebSocket.onclose();
-      mockWebSocket.onclose();
-      mockWebSocket.onclose();
+      mockWebSocket.onclose?.({} as CloseEvent);
+      mockWebSocket.onclose?.({} as CloseEvent);
+      mockWebSocket.onclose?.({} as CloseEvent);
 
       // Advance timer
       jest.advanceTimersByTime(5000);
@@ -270,8 +292,8 @@ describe('HAClient', () => {
         ok: true,
         json: () => Promise.resolve(mockStates)
       } as Response);
-      mockWebSocket.readyState = WebSocket.OPEN;
-      await mockWebSocket.onopen();
+      mockReadyState = WebSocket.OPEN;
+      await mockWebSocket.onopen?.({} as Event);
       await connectPromise;
 
       haClient.disconnect();
@@ -288,8 +310,8 @@ describe('HAClient', () => {
         ok: true,
         json: () => Promise.resolve(mockStates)
       } as Response);
-      mockWebSocket.readyState = WebSocket.OPEN;
-      await mockWebSocket.onopen();
+      mockReadyState = WebSocket.OPEN;
+      await mockWebSocket.onopen?.({} as Event);
       await connectPromise;
 
       // Add and then remove callback
@@ -297,7 +319,7 @@ describe('HAClient', () => {
       removeCallback();
 
       // Simulate state change
-      mockWebSocket.onmessage({
+      mockWebSocket.onmessage?.({
         data: JSON.stringify({
           type: 'state_changed',
           entity_id: 'light.living_room',
@@ -307,7 +329,7 @@ describe('HAClient', () => {
             last_updated: '2024-02-02T12:01:00Z'
           }
         })
-      });
+      } as MessageEvent);
 
       // Callback should not be called after removal
       expect(callback).not.toHaveBeenCalled();
