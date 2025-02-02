@@ -1,5 +1,5 @@
-import * as Blockly from 'blockly/core';
-import { haClient, EntityState } from '../services/haClient';
+import * as Blockly from "blockly/core";
+import { haClient, EntityState } from "../services/haClient";
 
 interface Entity {
   entityId: string;
@@ -23,12 +23,12 @@ export class FieldEntity extends Blockly.Field {
   /**
    * Class constructor for the entity field.
    * @param {string=} value The initial value of the field. Should be a valid entity ID.
-   * @param {Object=} config A map of options used to configure the field.
+   * @param {Object=} _config A map of options used to configure the field.
    */
-  constructor(value?: string, config?: Object) {
-    super(value || '');
+  constructor(value?: string, _config?: object) {
+    super(value || "");
     this.SERIALIZABLE = true;
-    this.CURSOR = 'pointer';
+    this.CURSOR = "pointer";
     this.boundHandleDocumentClick = this.handleDocumentClick.bind(this);
     // Connect to HA and load entities
     haClient.connect().then(() => this.loadEntities());
@@ -46,9 +46,12 @@ export class FieldEntity extends Blockly.Field {
 
     // Add specific click handler for our field
     if (this.fieldGroup_) {
-      (this.fieldGroup_ as unknown as HTMLElement).addEventListener('click', () => {
-        this.showEditor_();
-      });
+      (this.fieldGroup_ as unknown as HTMLElement).addEventListener(
+        "click",
+        () => {
+          this.showEditor_();
+        }
+      );
     }
   }
 
@@ -60,11 +63,11 @@ export class FieldEntity extends Blockly.Field {
     super.initView();
     // Create the text element
     this.textElement = Blockly.utils.dom.createSvgElement(
-      'text',
+      "text",
       {
-        'class': 'blocklyText',
-        'x': 0,
-        'y': 12,
+        class: "blocklyText",
+        x: 0,
+        y: 12,
       },
       this.fieldGroup_!
     ) as SVGTextElement;
@@ -87,8 +90,10 @@ export class FieldEntity extends Blockly.Field {
    * @override
    */
   protected override getDisplayText_(): string {
-    const entity = this.entities.find(e => e.entityId === this.getValue());
-    return entity ? `${entity.friendlyName} (${entity.entityId})` : this.getValue() || '⌄ Select entity';
+    const entity = this.entities.find((e) => e.entityId === this.getValue());
+    return entity
+      ? `${entity.friendlyName} (${entity.entityId})`
+      : this.getValue() || "⌄ Select entity";
   }
 
   /**
@@ -107,40 +112,46 @@ export class FieldEntity extends Blockly.Field {
    */
   protected override showEditor_() {
     this.showDropdown_();
-    document.addEventListener('click', this.boundHandleDocumentClick);
+    document.addEventListener("click", this.boundHandleDocumentClick);
 
     // Handle keyboard events on document level since we don't have an input element
     const keyHandler = (e: KeyboardEvent) => {
       if (!this.isDropdownVisible) return;
 
       switch (e.key) {
-        case 'ArrowDown':
+        case "ArrowDown":
           e.preventDefault();
-          this.selectedIndex = Math.min(this.selectedIndex + 1, this.filteredEntities.length - 1);
+          this.selectedIndex = Math.min(
+            this.selectedIndex + 1,
+            this.filteredEntities.length - 1
+          );
           this.updateSelection_();
           break;
-        case 'ArrowUp':
+        case "ArrowUp":
           e.preventDefault();
           this.selectedIndex = Math.max(this.selectedIndex - 1, -1);
           this.updateSelection_();
           break;
-        case 'Enter':
+        case "Enter":
           e.preventDefault();
-          if (this.selectedIndex >= 0 && this.selectedIndex < this.filteredEntities.length) {
+          if (
+            this.selectedIndex >= 0 &&
+            this.selectedIndex < this.filteredEntities.length
+          ) {
             const entity = this.filteredEntities[this.selectedIndex];
             this.setValue(entity.entityId);
             this.hideDropdown_();
           }
           break;
-        case 'Escape':
+        case "Escape":
           this.hideDropdown_();
           break;
       }
     };
 
-    document.addEventListener('keydown', keyHandler);
-    this.dropdownDiv?.addEventListener('remove', () => {
-      document.removeEventListener('keydown', keyHandler);
+    document.addEventListener("keydown", keyHandler);
+    this.dropdownDiv?.addEventListener("remove", () => {
+      document.removeEventListener("keydown", keyHandler);
     });
   }
 
@@ -151,14 +162,14 @@ export class FieldEntity extends Blockly.Field {
     if (!this.dropdownDiv) return;
 
     // Remove previous selection
-    const items = this.dropdownDiv.querySelectorAll('div:not(.domain)');
-    items.forEach(item => item.classList.remove('selected'));
+    const items = this.dropdownDiv.querySelectorAll("div:not(.domain)");
+    items.forEach((item) => item.classList.remove("selected"));
 
     // Add new selection
     if (this.selectedIndex >= 0 && this.selectedIndex < items.length) {
-      items[this.selectedIndex].classList.add('selected');
+      items[this.selectedIndex].classList.add("selected");
       // Scroll into view if needed
-      items[this.selectedIndex].scrollIntoView({ block: 'nearest' });
+      items[this.selectedIndex].scrollIntoView({ block: "nearest" });
     }
   }
 
@@ -168,11 +179,13 @@ export class FieldEntity extends Blockly.Field {
   private async loadEntities() {
     try {
       const states = await haClient.getAllStates();
-      this.entities = Object.entries(states).map(([entityId, state]: [string, EntityState]) => ({
-        entityId,
-        friendlyName: state.attributes.friendly_name || entityId,
-        domain: entityId.split('.')[0]
-      }));
+      this.entities = Object.entries(states).map(
+        ([entityId, state]: [string, EntityState]) => ({
+          entityId,
+          friendlyName: state.attributes.friendly_name || entityId,
+          domain: entityId.split(".")[0],
+        })
+      );
 
       // Sort entities by domain and then by friendly name
       this.entities.sort((a, b) => {
@@ -184,25 +197,26 @@ export class FieldEntity extends Blockly.Field {
 
       // Subscribe to state changes to keep entities list updated
       haClient.onStateChanged((entityId: string, state: EntityState) => {
-        const index = this.entities.findIndex(e => e.entityId === entityId);
+        const index = this.entities.findIndex((e) => e.entityId === entityId);
         if (index === -1) {
           // New entity
           this.entities.push({
             entityId,
             friendlyName: state.attributes.friendly_name || entityId,
-            domain: entityId.split('.')[0]
+            domain: entityId.split(".")[0],
           });
           this.entities.sort((a, b) => a.entityId.localeCompare(b.entityId));
         } else {
           // Update existing entity
-          this.entities[index].friendlyName = state.attributes.friendly_name || entityId;
+          this.entities[index].friendlyName =
+            state.attributes.friendly_name || entityId;
         }
       });
 
       // Re-render to show friendly name if available
       this.render_();
     } catch (error) {
-      console.error('Failed to load entities:', error);
+      console.error("Failed to load entities:", error);
     }
   }
 
@@ -211,7 +225,11 @@ export class FieldEntity extends Blockly.Field {
    */
   private handleDocumentClick(e: MouseEvent) {
     const target = e.target as HTMLElement;
-    if (this.dropdownDiv && !this.dropdownDiv.contains(target) && !this.fieldGroup_?.contains(target)) {
+    if (
+      this.dropdownDiv &&
+      !this.dropdownDiv.contains(target) &&
+      !this.fieldGroup_?.contains(target)
+    ) {
       this.hideDropdown_();
     }
   }
@@ -222,14 +240,14 @@ export class FieldEntity extends Blockly.Field {
   private showDropdown_() {
     // Create dropdown if it doesn't exist
     if (!this.dropdownDiv) {
-      this.dropdownDiv = document.createElement('div');
-      this.dropdownDiv.className = 'blocklyFieldEntityDropdown';
+      this.dropdownDiv = document.createElement("div");
+      this.dropdownDiv.className = "blocklyFieldEntityDropdown";
       document.body.appendChild(this.dropdownDiv);
 
       // Add styles if they don't exist
-      if (!document.getElementById('blocklyFieldEntityStyles')) {
-        const style = document.createElement('style');
-        style.id = 'blocklyFieldEntityStyles';
+      if (!document.getElementById("blocklyFieldEntityStyles")) {
+        const style = document.createElement("style");
+        style.id = "blocklyFieldEntityStyles";
         style.textContent = `
           .blocklyFieldEntityDropdown {
             position: fixed;
@@ -282,16 +300,16 @@ export class FieldEntity extends Blockly.Field {
       dropdown.style.left = `${fieldRect.left}px`;
       dropdown.style.top = `${fieldRect.bottom + 2}px`;
       dropdown.style.minWidth = `${Math.max(200, fieldRect.width)}px`;
-      dropdown.style.display = 'block';
+      dropdown.style.display = "block";
     }
 
     // Add search input
-    const searchDiv = document.createElement('div');
-    searchDiv.className = 'search';
-    const searchInput = document.createElement('input');
-    searchInput.type = 'text';
-    searchInput.placeholder = 'Search entities...';
-    searchInput.value = this.getValue() || '';
+    const searchDiv = document.createElement("div");
+    searchDiv.className = "search";
+    const searchInput = document.createElement("input");
+    searchInput.type = "text";
+    searchInput.placeholder = "Search entities...";
+    searchInput.value = this.getValue() || "";
     searchDiv.appendChild(searchInput);
     this.dropdownDiv.appendChild(searchDiv);
 
@@ -300,11 +318,12 @@ export class FieldEntity extends Blockly.Field {
     searchInput.select();
 
     // Handle search input
-    searchInput.addEventListener('input', () => {
+    searchInput.addEventListener("input", () => {
       const searchValue = searchInput.value.toLowerCase();
-      this.filteredEntities = this.entities.filter(entity =>
-        entity.entityId.toLowerCase().includes(searchValue) ||
-        entity.friendlyName.toLowerCase().includes(searchValue)
+      this.filteredEntities = this.entities.filter(
+        (entity) =>
+          entity.entityId.toLowerCase().includes(searchValue) ||
+          entity.friendlyName.toLowerCase().includes(searchValue)
       );
       this.updateDropdownContent_();
     });
@@ -319,7 +338,7 @@ export class FieldEntity extends Blockly.Field {
    */
   private hideDropdown_() {
     if (this.dropdownDiv && this.isDropdownVisible) {
-      document.removeEventListener('click', this.boundHandleDocumentClick);
+      document.removeEventListener("click", this.boundHandleDocumentClick);
       this.dropdownDiv.remove();
       this.dropdownDiv = null;
       this.isDropdownVisible = false;
@@ -335,38 +354,41 @@ export class FieldEntity extends Blockly.Field {
     if (!dropdown) return;
 
     // Keep the search div
-    const searchDiv = dropdown.querySelector('.search');
-    dropdown.innerHTML = '';
+    const searchDiv = dropdown.querySelector(".search");
+    dropdown.innerHTML = "";
     if (searchDiv) {
       dropdown.appendChild(searchDiv);
     }
 
     if (this.filteredEntities.length === 0) {
-      const noResults = document.createElement('div');
-      noResults.textContent = 'No matching entities found';
+      const noResults = document.createElement("div");
+      noResults.textContent = "No matching entities found";
       dropdown.appendChild(noResults);
       return;
     }
 
     // Group entities by domain
-    const groupedEntities = this.filteredEntities.reduce((groups: Record<string, Entity[]>, entity) => {
-      if (!groups[entity.domain]) {
-        groups[entity.domain] = [];
-      }
-      groups[entity.domain].push(entity);
-      return groups;
-    }, {});
+    const groupedEntities = this.filteredEntities.reduce(
+      (groups: Record<string, Entity[]>, entity) => {
+        if (!groups[entity.domain]) {
+          groups[entity.domain] = [];
+        }
+        groups[entity.domain].push(entity);
+        return groups;
+      },
+      {}
+    );
 
     Object.entries(groupedEntities).forEach(([domain, entities]) => {
       // Add domain header
-      const domainDiv = document.createElement('div');
-      domainDiv.className = 'domain';
+      const domainDiv = document.createElement("div");
+      domainDiv.className = "domain";
       domainDiv.textContent = domain;
       dropdown.appendChild(domainDiv);
 
       // Add entities
-      entities.forEach(entity => {
-        const div = document.createElement('div');
+      entities.forEach((entity) => {
+        const div = document.createElement("div");
         div.textContent = `${entity.friendlyName} (${entity.entityId})`;
         div.onclick = () => {
           this.setValue(entity.entityId);
@@ -394,7 +416,7 @@ export class FieldEntity extends Blockly.Field {
    * @nocollapse
    */
   static fromJson(options: any): FieldEntity {
-    return new FieldEntity(options['value']);
+    return new FieldEntity(options["value"]);
   }
 
   /**
@@ -413,12 +435,12 @@ export class FieldEntity extends Blockly.Field {
     }
 
     // Basic entity ID format validation (domain.entity)
-    if (!newValue.includes('.')) {
+    if (!newValue.includes(".")) {
       return null;
     }
 
     // Split into domain and entity_id
-    const [domain, ...rest] = newValue.split('.');
+    const [domain, ...rest] = newValue.split(".");
 
     // Validate domain exists and entity_id is present
     if (!domain || rest.length === 0) {
@@ -426,7 +448,7 @@ export class FieldEntity extends Blockly.Field {
     }
 
     // Validate no spaces in entity ID
-    if (newValue.includes(' ')) {
+    if (newValue.includes(" ")) {
       return null;
     }
 
@@ -436,4 +458,4 @@ export class FieldEntity extends Blockly.Field {
 
 // Register the field with Blockly
 // Register field with proper type casting
-Blockly.fieldRegistry.register('field_entity', FieldEntity);
+Blockly.fieldRegistry.register("field_entity", FieldEntity);

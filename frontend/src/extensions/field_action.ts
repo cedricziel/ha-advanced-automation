@@ -18,7 +18,7 @@ export class FieldAction extends Blockly.Field {
      * @param {string=} value The initial value of the field. Should be a valid action ID (domain.action).
      * @param {Object=} config A map of options used to configure the field.
      */
-    constructor(value?: string, config?: Object) {
+    constructor(value?: string, config?: object) {
         super(value || '');
         this.SERIALIZABLE = true;
         this.CURSOR = 'pointer';
