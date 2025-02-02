@@ -188,6 +188,6 @@ export const standardBlocks = {
     }
   ] as ToolboxCategory[],
 
-  // These blocks are already defined in Blockly core
+  // Define only custom blocks here, not standard Blockly blocks
   definitions: [] as BlockDefinition[]
 };

@@ -24,10 +24,6 @@
     "watch": "react-scripts build --watch & nodemon --watch build --exec \"rm -rf ../backend/static/* && cp -r build/* ../backend/static/\""
   },
   "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ],
     "overrides": [
       {
         "extends": [
@@ -68,6 +64,8 @@
     "@types/react": "^18.2.48",
     "@types/react-dom": "^18.2.18",
     "cypress": "^14.0.1",
+    "eslint": "^9.19.0",
+    "eslint-plugin-cypress": "^4.1.0",
     "identity-obj-proxy": "^3.0.0",
     "jest": "^29.0.0",
     "nodemon": "^3.1.9",
