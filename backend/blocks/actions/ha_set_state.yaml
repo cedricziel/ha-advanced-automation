@@ -15,3 +15,8 @@ tooltip: "Set an entity to a specific state"
 extensions:
   - entity_state_extension
 category: Actions
+rhai_template: |
+  // Set entity state
+  let entity_id = "{{ENTITY_ID}}";
+  let state = "{{STATE}}";
+  set_state(entity_id, state);

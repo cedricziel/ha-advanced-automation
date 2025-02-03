@@ -15,3 +15,13 @@ tooltip: "Triggers when an entity changes to a specific state"
 extensions:
   - entity_state_extension
 category: Triggers
+rhai_template: |
+  // State change trigger
+  let trigger_entity = "{{ENTITY_ID}}";
+  let trigger_state = "{{STATE}}";
+
+  on_state_change(trigger_entity, |entity_id, new_state| {
+      if new_state == trigger_state {
+          {{NEXT}}  // Execute next block
+      }
+  });

@@ -2,6 +2,8 @@ mod ha_client;
 mod automation;
 mod blockly;
 mod blocks;
+mod codegen;
+mod rhai;
 mod tests;
 
 use dotenv::dotenv;

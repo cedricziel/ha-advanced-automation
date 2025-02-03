@@ -52,6 +52,8 @@ pub struct BlockDefinition {
     pub created: Option<DateTime<Utc>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub modified: Option<DateTime<Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rhai_template: Option<String>,
 }
 
 pub struct BlockStore {
