@@ -22,5 +22,6 @@ Thumbs.db
 
 # Automation files
 /automations/*.yaml
+/automations/*.rhai
 
 .clinefile

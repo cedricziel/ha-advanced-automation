@@ -1,5 +1,5 @@
-mod engine;
-mod bindings;
+pub mod engine;
+pub mod bindings;
 
 pub use engine::*;
 pub use bindings::*;

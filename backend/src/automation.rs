@@ -7,6 +7,8 @@ use tokio::fs;
 use uuid::Uuid;
 use chrono::{DateTime, Utc};
 use serde_json::Value;
+use crate::codegen::generator::CodeGenerator;
+use crate::rhai::engine::ScriptEngine;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Automation {
@@ -62,6 +64,8 @@ pub struct AutomationUpdate {
 pub struct AutomationStore {
     automations: Arc<RwLock<HashMap<String, Automation>>>,
     storage_path: PathBuf,
+    code_generator: CodeGenerator,
+    script_engine: ScriptEngine,
 }
 
 impl AutomationStore {
@@ -85,6 +89,8 @@ impl AutomationStore {
         let store = Self {
             automations: Arc::new(RwLock::new(HashMap::new())),
             storage_path,
+            code_generator: CodeGenerator::new(),
+            script_engine: ScriptEngine::new(),
         };
 
         // Load existing automations
@@ -119,7 +125,28 @@ impl AutomationStore {
 
         let file_path = self.storage_path.join(format!("{}.yaml", automation.id));
         tracing::debug!("Writing to file: {:?}", file_path);
-        fs::write(file_path, yaml).await
+        fs::write(&file_path, yaml).await?;
+
+        // After saving the YAML, compile and save the Rhai script
+        self.compile_automation_script(automation).await?;
+
+        Ok(())
+    }
+
+    async fn compile_automation_script(&self, automation: &Automation) -> std::io::Result<()> {
+        // Generate Rhai code from the automation's workspace
+        let context: HashMap<String, Value> = HashMap::new(); // TODO: Extract context from workspace
+        let generated_code = self.code_generator.generate_code(&automation.workspace, &context)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+
+        // Validate the generated code compiles
+        self.script_engine.compile(&generated_code)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("Script compilation error: {}", e)))?;
+
+        // Save the compiled script
+        let script_path = self.storage_path.join(format!("{}.rhai", automation.id));
+        tracing::debug!("Writing Rhai script to: {:?}", script_path);
+        fs::write(script_path, generated_code).await
     }
 
     pub async fn list(&self) -> Vec<Automation> {
@@ -193,9 +220,16 @@ impl AutomationStore {
         let was_present = automations.remove(id).is_some();
 
         if was_present {
-            let file_path = self.storage_path.join(format!("{}.yaml", id));
-            if file_path.exists() {
-                fs::remove_file(file_path).await?;
+            // Delete YAML file
+            let yaml_path = self.storage_path.join(format!("{}.yaml", id));
+            if yaml_path.exists() {
+                fs::remove_file(&yaml_path).await?;
+            }
+
+            // Delete Rhai script
+            let rhai_path = self.storage_path.join(format!("{}.rhai", id));
+            if rhai_path.exists() {
+                fs::remove_file(&rhai_path).await?;
             }
         }
 

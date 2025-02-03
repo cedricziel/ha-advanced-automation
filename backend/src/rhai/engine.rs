@@ -3,8 +3,9 @@ use crate::rhai::{SCRIPT_MEM_LIMIT_BYTES, SCRIPT_TIMEOUT_MS};
 use rhai::{Dynamic, Engine, EvalAltResult, Scope, AST};
 use std::sync::Arc;
 
+#[derive(Debug, Clone)]
 pub struct ScriptEngine {
-    engine: Engine,
+    engine: Arc<Engine>,
 }
 
 impl ScriptEngine {
@@ -26,11 +27,11 @@ impl ScriptEngine {
         // Register Home Assistant API
         register_ha_api(&mut engine);
 
-        Self { engine }
+        Self { engine: Arc::new(engine) }
     }
 
     pub fn compile(&self, script: &str) -> Result<AST, Box<EvalAltResult>> {
-        self.engine.compile(script).map_err(|e| {
+        self.engine.as_ref().compile(script).map_err(|e| {
             Box::new(EvalAltResult::ErrorSystem(
                 format!("Compilation error: {}", e),
                 Box::new(e),
@@ -40,7 +41,7 @@ impl ScriptEngine {
 
     pub fn run(&self, ast: &AST) -> Result<Dynamic, Box<EvalAltResult>> {
         let mut scope = Scope::new();
-        self.engine
+        self.engine.as_ref()
             .run_ast_with_scope(&mut scope, ast)
             .map(Dynamic::from)
             .map_err(|e| {
