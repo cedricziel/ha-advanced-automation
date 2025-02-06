@@ -65,7 +65,7 @@
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
     "@types/react-router-dom": "^5.3.3",
-    "@types/testing-library__jest-dom": "^5.14.9",
+    "@types/testing-library__jest-dom": "^6.0.0",
     "@vitejs/plugin-react": "^4.3.4",
     "cypress": "^14.0.2",
     "eslint": "^9.19.0",
