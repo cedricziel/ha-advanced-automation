@@ -1,5 +1,12 @@
 {
-  "cSpell.words": ["automations", "blockly", "colour", "dotenv", "scrollbars"],
+  "cSpell.words": [
+    "automations",
+    "blockly",
+    "colour",
+    "dotenv",
+    "rhai",
+    "scrollbars"
+  ],
   "yaml.schemas": {
     "backend/schemas/block.json": "backend/blocks/**/*.yaml"
   },
