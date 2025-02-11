@@ -107,6 +107,71 @@ impl MockHaServer {
                                         }]
                                     }).to_string().into())).await.unwrap();
                                 }
+                                Some("get_services") => {
+                                    // Send mock services
+                                    write.send(Message::Text(json!({
+                                        "id": msg["id"],
+                                        "type": "result",
+                                        "success": true,
+                                        "result": {
+                                            "tts": {
+                                                "google_translate_say": {
+                                                    "name": "Say a TTS message with google_translate",
+                                                    "description": "Say something using text-to-speech",
+                                                    "fields": {
+                                                        "entity_id": {
+                                                            "name": "Entity ID",
+                                                            "required": true,
+                                                            "selector": {
+                                                                "entity": {
+                                                                    "domain": "media_player"
+                                                                }
+                                                            }
+                                                        },
+                                                        "message": {
+                                                            "name": "Message",
+                                                            "required": true,
+                                                            "selector": {
+                                                                "text": null
+                                                            }
+                                                        }
+                                                    }
+                                                },
+                                                "cloud_say": {
+                                                    "description": "Say something using cloud TTS",
+                                                    "fields": {
+                                                        "entity_id": {
+                                                            "name": "Entity ID",
+                                                            "required": true,
+                                                            "selector": {
+                                                                "entity": {
+                                                                    "domain": "media_player"
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            "light": {
+                                                "turn_on": {
+                                                    "name": "Turn on",
+                                                    "description": "Turn on one or more lights",
+                                                    "fields": {
+                                                        "entity_id": {
+                                                            "name": "Entity ID",
+                                                            "required": true,
+                                                            "selector": {
+                                                                "entity": {
+                                                                    "domain": "light"
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }).to_string().into())).await.unwrap();
+                                }
                                 _ => {}
                             }
                         }
@@ -157,6 +222,87 @@ mod tests {
         assert_eq!(living_room.state, "on");
 
         // Clean up
+        mock_server.stop().await;
+    }
+
+    #[tokio::test]
+    async fn test_action_parsing_complete_data() {
+        let mock_server = MockHaServer::start().await;
+        let client = HaClient::new();
+
+        // Connect to mock server
+        client
+            .connect(mock_server.host(), "mock_token".to_string())
+            .await
+            .unwrap();
+
+        // Wait for services to be processed
+        sleep(Duration::from_millis(100)).await;
+
+        // Get all actions
+        let actions = client.get_all_actions().await;
+
+        // Verify complete action data
+        let action = actions.get("tts.google_translate_say").unwrap();
+        assert_eq!(action.domain, Some("tts".to_string()));
+        assert_eq!(action.name, Some("Say a TTS message with google_translate".to_string()));
+        assert_eq!(action.description, Some("Say something using text-to-speech".to_string()));
+        assert!(action.fields.contains_key("entity_id"));
+        assert!(action.fields.contains_key("message"));
+        assert_eq!(action.fields["entity_id"].required, Some(true));
+
+        // Clean up
+        mock_server.stop().await;
+    }
+
+    #[tokio::test]
+    async fn test_action_parsing_minimal_data() {
+        let mock_server = MockHaServer::start().await;
+        let client = HaClient::new();
+
+        client
+            .connect(mock_server.host(), "mock_token".to_string())
+            .await
+            .unwrap();
+
+        sleep(Duration::from_millis(100)).await;
+
+        let actions = client.get_all_actions().await;
+
+        // Verify minimal action (cloud_say has minimal fields)
+        let action = actions.get("tts.cloud_say").unwrap();
+        assert_eq!(action.domain, Some("tts".to_string()));
+        assert_eq!(action.name, None);
+        assert_eq!(action.description, Some("Say something using cloud TTS".to_string()));
+        assert!(action.fields.contains_key("entity_id"));
+
+        mock_server.stop().await;
+    }
+
+    #[tokio::test]
+    async fn test_get_all_actions() {
+        let mock_server = MockHaServer::start().await;
+        let client = HaClient::new();
+
+        client
+            .connect(mock_server.host(), "mock_token".to_string())
+            .await
+            .unwrap();
+
+        sleep(Duration::from_millis(100)).await;
+
+        let actions = client.get_all_actions().await;
+
+        // Verify we got all expected actions
+        assert!(actions.contains_key("tts.google_translate_say"));
+        assert!(actions.contains_key("tts.cloud_say"));
+        assert!(actions.contains_key("light.turn_on"));
+
+        // Verify different domains are handled correctly
+        let light_action = actions.get("light.turn_on").unwrap();
+        assert_eq!(light_action.domain, Some("light".to_string()));
+        assert_eq!(light_action.name, Some("Turn on".to_string()));
+
         mock_server.stop().await;
     }
 

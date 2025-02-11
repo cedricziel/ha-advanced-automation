@@ -25,14 +25,14 @@ pub struct ActionField {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Action {
-    #[serde(skip_deserializing)]
-    pub domain: String,
+    #[serde(default)]
+    pub domain: Option<String>,
     pub name: Option<String>,
     pub description: Option<String>,
     pub target: Option<Value>,
     pub fields: HashMap<String, ActionField>,
-    #[serde(skip_deserializing)]
-    pub id: String,
+    #[serde(default)]
+    pub id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -191,29 +191,36 @@ impl HaClient {
                                 for (domain, domain_services) in result {
                                     if let Some(services) = domain_services.as_object() {
                                         for (service_name, service_data) in services {
-                                            match serde_json::from_value::<Action>(
+                                            let mut action = match serde_json::from_value::<Action>(
                                                 service_data.clone(),
                                             ) {
-                                                Ok(mut action) => {
-                                                    action.domain = domain.clone();
-                                                    action.id =
-                                                        format!("{}.{}", domain, service_name);
-                                                    tracing::debug!(
-                                                        "Added action: {}.{}",
-                                                        domain,
-                                                        service_name
-                                                    );
-                                                    actions_map.insert(action.id.clone(), action);
-                                                }
+                                                Ok(action) => action,
                                                 Err(e) => {
                                                     tracing::error!(
-                                                        "Failed to parse service {}.{}: {}",
+                                                        "Failed to parse service {}.{}: {}. Raw data: {:?}",
                                                         domain,
                                                         service_name,
-                                                        e
+                                                        e,
+                                                        service_data
                                                     );
+                                                    Action {
+                                                        domain: None,
+                                                        name: None,
+                                                        description: None,
+                                                        target: None,
+                                                        fields: HashMap::new(),
+                                                        id: None,
+                                                    }
                                                 }
-                                            }
+                                            };
+
+                                            // Set domain and id after deserialization
+                                            let id = format!("{}.{}", domain, service_name);
+                                            action.domain = Some(domain.clone());
+                                            action.id = Some(id.clone());
+
+                                            tracing::debug!("Added action: {}", id);
+                                            actions_map.insert(id, action);
                                         }
                                     }
                                 }
