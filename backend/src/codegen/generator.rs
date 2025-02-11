@@ -87,19 +87,11 @@ impl CodeGenerator {
         self.generate_block_code(&blocks[0], context).await
     }
 
-    async fn generate_block_code<'a>(
+    fn generate_block_code<'a>(
         &'a self,
         block: &'a Value,
         context: &'a HashMap<String, Value>,
-    ) -> Result<String, String> {
-        self.generate_block_code_inner(block, context).await
-    }
-
-    fn generate_block_code_inner<'a>(
-        &'a self,
-        block: &'a Value,
-        context: &'a HashMap<String, Value>,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<String, String>> + 'a>> {
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<String, String>> + Send + 'a>> {
         Box::pin(async move {
             let block_type = block
                 .get("type")
@@ -161,9 +153,10 @@ impl CodeGenerator {
             }
 
             // Render the template with the field values
-            self.handlebars
+            let rendered = self.handlebars
                 .render_template(&template, &field_values)
-                .map_err(|e| format!("Template rendering error: {}", e))
+                .map_err(|e| format!("Template rendering error: {}", e))?;
+            Ok(rendered)
         })
     }
 }
