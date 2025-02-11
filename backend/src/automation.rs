@@ -1,14 +1,15 @@
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::sync::Arc;
-use tokio::sync::RwLock;
-use tokio::fs;
-use uuid::Uuid;
-use chrono::{DateTime, Utc};
-use serde_json::Value;
 use crate::codegen::generator::CodeGenerator;
 use crate::rhai::engine::ScriptEngine;
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use std::collections::HashMap;
+use std::io::Error;
+use std::path::PathBuf;
+use std::sync::Arc;
+use tokio::fs;
+use tokio::sync::RwLock;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Automation {
@@ -22,6 +23,8 @@ pub struct Automation {
     pub conditions: Vec<ConditionDefinition>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub compilation_error: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -69,7 +72,7 @@ pub struct AutomationStore {
 }
 
 impl AutomationStore {
-    pub async fn new() -> std::io::Result<Self> {
+    pub async fn new(block_store: crate::blocks::BlockStore) -> std::io::Result<Self> {
         let storage_path = if cfg!(debug_assertions) {
             // In debug mode, use the project root directory
             let mut path = std::env::current_dir()?;
@@ -89,7 +92,7 @@ impl AutomationStore {
         let store = Self {
             automations: Arc::new(RwLock::new(HashMap::new())),
             storage_path,
-            code_generator: CodeGenerator::new(),
+            code_generator: CodeGenerator::new(block_store),
             script_engine: ScriptEngine::new(),
         };
 
@@ -117,18 +120,29 @@ impl AutomationStore {
         Ok(())
     }
 
-    async fn save_automation(&self, automation: &Automation) -> std::io::Result<()> {
+    async fn save_automation(&self, automation: &mut Automation) -> std::io::Result<()> {
         tracing::debug!("Saving automation to storage path: {:?}", self.storage_path);
-        let yaml = serde_yaml::to_string(&automation).map_err(|e| {
-            std::io::Error::new(std::io::ErrorKind::Other, e)
-        })?;
+
+        // First try to compile the Rhai script
+        match self.compile_automation_script(automation).await {
+            Ok(_) => {
+                automation.compilation_error = None;
+            }
+            Err(e) => {
+                let error_msg = format!("Script compilation error: {}", e);
+                tracing::error!("{}", error_msg.clone());
+                automation.compilation_error = Some(error_msg.clone());
+                return Err(Error::new(std::io::ErrorKind::Other, error_msg));
+            }
+        }
+
+        // If compilation succeeded, save the YAML
+        let yaml = serde_yaml::to_string(&automation)
+            .map_err(|e| Error::new(std::io::ErrorKind::Other, e))?;
 
         let file_path = self.storage_path.join(format!("{}.yaml", automation.id));
         tracing::debug!("Writing to file: {:?}", file_path);
         fs::write(&file_path, yaml).await?;
-
-        // After saving the YAML, compile and save the Rhai script
-        self.compile_automation_script(automation).await?;
 
         Ok(())
     }
@@ -136,12 +150,19 @@ impl AutomationStore {
     async fn compile_automation_script(&self, automation: &Automation) -> std::io::Result<()> {
         // Generate Rhai code from the automation's workspace
         let context: HashMap<String, Value> = HashMap::new(); // TODO: Extract context from workspace
-        let generated_code = self.code_generator.generate_code(&automation.workspace, &context)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        let generated_code = self
+            .code_generator
+            .generate_code(&automation.workspace, &context)
+            .await
+            .map_err(|e| Error::new(std::io::ErrorKind::Other, e))?;
 
         // Validate the generated code compiles
-        self.script_engine.compile(&generated_code)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("Script compilation error: {}", e)))?;
+        self.script_engine.compile(&generated_code).map_err(|e| {
+            Error::new(
+                std::io::ErrorKind::Other,
+                format!("Script compilation error: {}", e),
+            )
+        })?;
 
         // Save the compiled script
         let script_path = self.storage_path.join(format!("{}.rhai", automation.id));
@@ -161,7 +182,7 @@ impl AutomationStore {
 
     pub async fn create(&self, data: AutomationCreate) -> std::io::Result<Automation> {
         let now = Utc::now();
-        let automation = Automation {
+        let mut automation = Automation {
             id: Uuid::new_v4().to_string(),
             name: data.name,
             description: data.description,
@@ -172,29 +193,34 @@ impl AutomationStore {
             conditions: data.conditions,
             created_at: now,
             updated_at: now,
+            compilation_error: None,
         };
+
+        self.save_automation(&mut automation).await?;
 
         let mut automations = self.automations.write().await;
         automations.insert(automation.id.clone(), automation.clone());
 
-        self.save_automation(&automation).await?;
-
         Ok(automation)
     }
 
-    pub async fn update(&self, id: &str, data: AutomationUpdate) -> std::io::Result<Option<Automation>> {
+    pub async fn update(
+        &self,
+        id: &str,
+        data: AutomationUpdate,
+    ) -> std::io::Result<Option<Automation>> {
         let mut automations = self.automations.write().await;
 
         if let Some(existing) = automations.get(id) {
             // Version check
             if data.version != existing.version {
-                return Err(std::io::Error::new(
+                return Err(Error::new(
                     std::io::ErrorKind::Other,
                     "Version mismatch - automation has been modified",
                 ));
             }
 
-            let updated = Automation {
+            let mut updated = Automation {
                 id: id.to_string(),
                 name: data.name,
                 description: data.description,
@@ -205,10 +231,11 @@ impl AutomationStore {
                 conditions: data.conditions,
                 created_at: existing.created_at,
                 updated_at: Utc::now(),
+                compilation_error: None,
             };
 
+            self.save_automation(&mut updated).await?;
             automations.insert(id.to_string(), updated.clone());
-            self.save_automation(&updated).await?;
             Ok(Some(updated))
         } else {
             Ok(None)
@@ -239,11 +266,11 @@ impl AutomationStore {
     pub async fn toggle(&self, id: &str, enabled: bool) -> std::io::Result<Option<Automation>> {
         let mut automations = self.automations.write().await;
 
-        if let Some(automation) = automations.get_mut(id) {
+        if let Some(mut automation) = automations.get(id).cloned() {
             automation.enabled = enabled;
             automation.updated_at = Utc::now();
-            let automation = automation.clone();
-            self.save_automation(&automation).await?;
+            self.save_automation(&mut automation).await?;
+            automations.insert(id.to_string(), automation.clone());
             Ok(Some(automation))
         } else {
             Ok(None)
