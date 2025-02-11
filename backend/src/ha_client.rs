@@ -196,8 +196,8 @@ impl HaClient {
                                             ) {
                                                 Ok(action) => action,
                                                 Err(e) => {
-                                                    tracing::error!(
-                                                        "Failed to parse service {}.{}: {}. Raw data: {:?}",
+                                                    tracing::debug!(
+                                                        "Using fallback parsing for service {}.{} ({}). Raw data: {:?}",
                                                         domain,
                                                         service_name,
                                                         e,
