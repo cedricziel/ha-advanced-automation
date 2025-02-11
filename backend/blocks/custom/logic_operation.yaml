@@ -1,0 +1,23 @@
+type: logic_operation
+message0: '%1 %2 %3'
+args0:
+- type: input_value
+  name: A
+  check: Boolean
+- type: field_dropdown
+  name: OP
+  options:
+  - - and
+    - AND
+  - - or
+    - OR
+- type: input_value
+  name: B
+  check: Boolean
+output: Boolean
+colour: 0
+tooltip: ''
+id: e673edb9-62ac-4d49-bfb3-326d10c8bd55
+created: 2025-02-11T20:59:43.183944Z
+modified: 2025-02-11T20:59:43.183944Z
+rhai_template: '{{ A }} {{ OP }} {{ B }}'

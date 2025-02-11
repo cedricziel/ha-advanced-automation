@@ -108,8 +108,15 @@ impl CodeGenerator {
                 .rhai_template
                 .ok_or_else(|| format!("No Rhai template found for block type: {}", block_type))?;
 
-            // Extract field values from the block
+            // Initialize field values with empty strings for all expected inputs
             let mut field_values = HashMap::new();
+            if let Some(args) = &block_def.args0 {
+                for arg in args {
+                    field_values.insert(arg.name.clone(), Value::String(String::new()));
+                }
+            }
+
+            // Extract field values from the block
             if let Some(fields) = block.get("fields").and_then(|f| f.as_object()) {
                 for (key, value) in fields {
                     if let Some(field_value) = value.get("value") {
@@ -121,9 +128,14 @@ impl CodeGenerator {
             // Handle inputs (for value inputs)
             if let Some(inputs) = block.get("inputs").and_then(|i| i.as_object()) {
                 for (key, value) in inputs {
-                    if let Some(input_block) = value.get("block") {
-                        let input_code = self.generate_block_code(input_block, context).await?;
-                        field_values.insert(key.clone(), Value::String(input_code));
+                    match value {
+                        Value::Object(input_obj) => {
+                            if let Some(input_block) = input_obj.get("block") {
+                                let input_code = self.generate_block_code(input_block, context).await?;
+                                field_values.insert(key.clone(), Value::String(input_code));
+                            }
+                        }
+                        _ => return Err(format!("Invalid input value for key {}: {:?}", key, value)),
                     }
                 }
             }

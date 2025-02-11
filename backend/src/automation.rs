@@ -73,17 +73,27 @@ pub struct AutomationStore {
 
 impl AutomationStore {
     pub async fn new(block_store: crate::blocks::BlockStore) -> std::io::Result<Self> {
-        let storage_path = if cfg!(debug_assertions) {
+        Self::with_storage_path(block_store, Self::default_storage_path()?).await
+    }
+
+    fn default_storage_path() -> std::io::Result<PathBuf> {
+        if cfg!(debug_assertions) {
             // In debug mode, use the project root directory
             let mut path = std::env::current_dir()?;
             tracing::debug!("Current dir: {:?}", path);
             path.pop(); // Go up one level from backend/
             path.push("automations");
             tracing::debug!("Storage path: {:?}", path);
-            path
+            Ok(path)
         } else {
-            PathBuf::from("/config/advanced-automation/automations")
-        };
+            Ok(PathBuf::from("/config/advanced-automation/automations"))
+        }
+    }
+
+    pub async fn with_storage_path(
+        block_store: crate::blocks::BlockStore,
+        storage_path: PathBuf,
+    ) -> std::io::Result<Self> {
 
         // Ensure the storage directory exists
         tracing::debug!("Creating storage directory: {:?}", storage_path);

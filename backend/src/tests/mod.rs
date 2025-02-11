@@ -1,10 +1,12 @@
-use std::net::SocketAddr;
-use tokio::net::TcpListener;
-use tokio_tungstenite::tungstenite::Message;
 use futures::{SinkExt, StreamExt};
 use serde_json::json;
+use std::net::SocketAddr;
 use std::sync::Arc;
+use tokio::net::TcpListener;
 use tokio::sync::Mutex;
+use tokio_tungstenite::tungstenite::Message;
+
+mod automation_tests;
 
 pub struct MockHaServer {
     addr: SocketAddr,
@@ -24,10 +26,17 @@ impl MockHaServer {
                 let (mut write, mut read) = ws_stream.split();
 
                 // Send initial auth_required message immediately after connection
-                write.send(Message::Text(json!({
-                    "type": "auth_required",
-                    "ha_version": "2024.1.0"
-                }).to_string().into())).await.unwrap();
+                write
+                    .send(Message::Text(
+                        json!({
+                            "type": "auth_required",
+                            "ha_version": "2024.1.0"
+                        })
+                        .to_string()
+                        .into(),
+                    ))
+                    .await
+                    .unwrap();
 
                 // Handle the WebSocket connection
                 while let Some(Ok(msg)) = read.next().await {
@@ -42,28 +51,79 @@ impl MockHaServer {
                             match msg["type"].as_str() {
                                 Some("auth") => {
                                     // Send auth_ok response
-                                    write.send(Message::Text(json!({
-                                        "type": "auth_ok",
-                                        "ha_version": "2024.1.0"
-                                    }).to_string().into())).await.unwrap();
+                                    write
+                                        .send(Message::Text(
+                                            json!({
+                                                "type": "auth_ok",
+                                                "ha_version": "2024.1.0"
+                                            })
+                                            .to_string()
+                                            .into(),
+                                        ))
+                                        .await
+                                        .unwrap();
                                 }
                                 Some("subscribe_events") => {
                                     // Send subscription success
-                                    write.send(Message::Text(json!({
-                                        "id": msg["id"],
-                                        "type": "result",
-                                        "success": true,
-                                        "result": null
-                                    }).to_string().into())).await.unwrap();
+                                    write
+                                        .send(Message::Text(
+                                            json!({
+                                                "id": msg["id"],
+                                                "type": "result",
+                                                "success": true,
+                                                "result": null
+                                            })
+                                            .to_string()
+                                            .into(),
+                                        ))
+                                        .await
+                                        .unwrap();
 
                                     // Send a mock state change event
-                                    write.send(Message::Text(json!({
-                                        "id": msg["id"],
-                                        "type": "event",
-                                        "event": {
-                                            "data": {
-                                                "entity_id": "light.living_room",
-                                                "new_state": {
+                                    write
+                                        .send(Message::Text(
+                                            json!({
+                                                "id": msg["id"],
+                                                "type": "event",
+                                                "event": {
+                                                    "data": {
+                                                        "entity_id": "light.living_room",
+                                                        "new_state": {
+                                                            "state": "on",
+                                                            "attributes": {
+                                                                "brightness": 255,
+                                                                "friendly_name": "Living Room Light"
+                                                            },
+                                                            "last_changed": "2024-01-26T10:45:00Z",
+                                                            "last_updated": "2024-01-26T10:45:00Z",
+                                                            "context": {
+                                                                "id": "01HN5ZRJX8KR6MQPN2VMBKF4XM",
+                                                                "parent_id": null,
+                                                                "user_id": null
+                                                            }
+                                                        }
+                                                    },
+                                                    "event_type": "state_changed",
+                                                    "time_fired": "2024-01-26T10:45:00Z",
+                                                    "origin": "LOCAL"
+                                                }
+                                            })
+                                            .to_string()
+                                            .into(),
+                                        ))
+                                        .await
+                                        .unwrap();
+                                }
+                                Some("get_states") => {
+                                    // Send mock states
+                                    write
+                                        .send(Message::Text(
+                                            json!({
+                                                "id": msg["id"],
+                                                "type": "result",
+                                                "success": true,
+                                                "result": [{
+                                                    "entity_id": "light.living_room",
                                                     "state": "on",
                                                     "attributes": {
                                                         "brightness": 255,
@@ -76,36 +136,13 @@ impl MockHaServer {
                                                         "parent_id": null,
                                                         "user_id": null
                                                     }
-                                                }
-                                            },
-                                            "event_type": "state_changed",
-                                            "time_fired": "2024-01-26T10:45:00Z",
-                                            "origin": "LOCAL"
-                                        }
-                                    }).to_string().into())).await.unwrap();
-                                }
-                                Some("get_states") => {
-                                    // Send mock states
-                                    write.send(Message::Text(json!({
-                                        "id": msg["id"],
-                                        "type": "result",
-                                        "success": true,
-                                        "result": [{
-                                            "entity_id": "light.living_room",
-                                            "state": "on",
-                                            "attributes": {
-                                                "brightness": 255,
-                                                "friendly_name": "Living Room Light"
-                                            },
-                                            "last_changed": "2024-01-26T10:45:00Z",
-                                            "last_updated": "2024-01-26T10:45:00Z",
-                                            "context": {
-                                                "id": "01HN5ZRJX8KR6MQPN2VMBKF4XM",
-                                                "parent_id": null,
-                                                "user_id": null
-                                            }
-                                        }]
-                                    }).to_string().into())).await.unwrap();
+                                                }]
+                                            })
+                                            .to_string()
+                                            .into(),
+                                        ))
+                                        .await
+                                        .unwrap();
                                 }
                                 Some("get_services") => {
                                     // Send mock services
@@ -197,8 +234,8 @@ impl MockHaServer {
 mod tests {
     use super::*;
     use crate::ha_client::HaClient;
-    use tokio::time::sleep;
     use std::time::Duration;
+    use tokio::time::sleep;
 
     #[tokio::test]
     async fn test_ha_client_connection() {
@@ -245,8 +282,14 @@ mod tests {
         // Verify complete action data
         let action = actions.get("tts.google_translate_say").unwrap();
         assert_eq!(action.domain, Some("tts".to_string()));
-        assert_eq!(action.name, Some("Say a TTS message with google_translate".to_string()));
-        assert_eq!(action.description, Some("Say something using text-to-speech".to_string()));
+        assert_eq!(
+            action.name,
+            Some("Say a TTS message with google_translate".to_string())
+        );
+        assert_eq!(
+            action.description,
+            Some("Say something using text-to-speech".to_string())
+        );
         assert!(action.fields.contains_key("entity_id"));
         assert!(action.fields.contains_key("message"));
         assert_eq!(action.fields["entity_id"].required, Some(true));
@@ -273,7 +316,10 @@ mod tests {
         let action = actions.get("tts.cloud_say").unwrap();
         assert_eq!(action.domain, Some("tts".to_string()));
         assert_eq!(action.name, None);
-        assert_eq!(action.description, Some("Say something using cloud TTS".to_string()));
+        assert_eq!(
+            action.description,
+            Some("Say something using cloud TTS".to_string())
+        );
         assert!(action.fields.contains_key("entity_id"));
 
         mock_server.stop().await;
@@ -321,14 +367,20 @@ mod tests {
             .unwrap();
 
         // Wait for state update
-        if let Ok((entity_id, state)) = tokio::time::timeout(
-            Duration::from_secs(1),
-            state_rx.recv()
-        ).await.unwrap() {
+        if let Ok((entity_id, state)) =
+            tokio::time::timeout(Duration::from_secs(1), state_rx.recv())
+                .await
+                .unwrap()
+        {
             assert_eq!(entity_id, "light.living_room");
             assert_eq!(state.state, "on");
             assert_eq!(
-                state.attributes.get("friendly_name").unwrap().as_str().unwrap(),
+                state
+                    .attributes
+                    .get("friendly_name")
+                    .unwrap()
+                    .as_str()
+                    .unwrap(),
                 "Living Room Light"
             );
         } else {

@@ -69,7 +69,10 @@ pub struct BlockStore {
 
 impl BlockStore {
     pub async fn new() -> Result<Self, std::io::Error> {
-        let blocks_dir = PathBuf::from("blocks");
+        Self::with_blocks_dir(PathBuf::from("blocks")).await
+    }
+
+    pub async fn with_blocks_dir(blocks_dir: PathBuf) -> Result<Self, std::io::Error> {
         let mut blocks = HashMap::new();
         let mut builtin_templates = HashMap::new();
 
