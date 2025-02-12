@@ -10,7 +10,7 @@
     "@blockly/field-multilineinput": "^5.0.13",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
-    "@mui/icons-material": "^6.4.3",
+    "@mui/icons-material": "^6.4.4",
     "@mui/material": "^6.4.2",
     "blockly": "^11.2.1",
     "react": "^19.0.0",
