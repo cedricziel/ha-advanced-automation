@@ -1,2 +1,2 @@
 #!/bin/bash
-cargo watch -x run -w src -c -r
+cargo watch -x run -w src

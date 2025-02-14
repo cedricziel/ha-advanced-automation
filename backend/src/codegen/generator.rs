@@ -73,10 +73,14 @@ impl CodeGenerator {
         workspace: &Value,
         context: &HashMap<String, Value>,
     ) -> Result<String, String> {
-        // Extract the top-level block from workspace
+        // Try nested structure first (new format)
         let blocks = workspace
             .get("blocks")
+            .and_then(|b| b.get("blocks"))
+            .and_then(|b| b.get("blocks"))
             .and_then(|b| b.as_array())
+            // Fallback to flat structure (old format)
+            .or_else(|| workspace.get("blocks").and_then(|b| b.as_array()))
             .ok_or_else(|| "No blocks found in workspace".to_string())?;
 
         if blocks.is_empty() {
@@ -140,6 +144,11 @@ impl CodeGenerator {
                 }
             }
 
+            // For controls_if block, initialize hasElse to false by default
+            if block_type == "controls_if" {
+                field_values.insert("hasElse".to_string(), Value::Bool(false));
+            }
+
             // Handle statements (for statement inputs)
             if let Some(statements) = block.get("statements").and_then(|s| s.as_object()) {
                 for (key, value) in statements {
@@ -148,6 +157,11 @@ impl CodeGenerator {
                             self.generate_block_code(statement_block, context).await?;
                         field_values.insert(key.clone(), Value::String(statement_code));
                     }
+                }
+
+                // For controls_if block, update hasElse if ELSE statement exists
+                if block_type == "controls_if" && statements.contains_key("ELSE") {
+                    field_values.insert("hasElse".to_string(), Value::Bool(true));
                 }
             }
 
