@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}Automations{% endblock %}
+
+{% block content %}
+<div class="search-bar">
+    <md-filled-text-field
+        type="search"
+        label="Search automations"
+        id="search"
+        hx-get="/automations/search"
+        hx-trigger="input changed delay:500ms"
+        hx-target="#automations-grid"
+        hx-swap="innerHTML"
+        hx-indicator="#search-indicator">
+    </md-filled-text-field>
+
+    <md-filled-button
+        href="/automations/new"
+        trailing-icon>
+        New Automation
+        <md-icon slot="trailing-icon">add</md-icon>
+    </md-filled-button>
+</div>
+
+<div id="search-indicator" class="htmx-indicator">
+    <md-circular-progress indeterminate></md-circular-progress>
+</div>
+
+<div class="grid" id="automations-grid">
+    {% for automation in automations %}
+    <div class="card automation-card" id="automation-{{ automation.id }}">
+        <div class="card-content">
+            <md-headline4>{{ automation.name }}</md-headline4>
+            {% match automation.description %}
+                {% when Some with (description) %}
+                    <md-body>{{ description }}</md-body>
+                {% when None %}
+            {% endmatch %}
+            <div style="margin-top: 8px;">
+                <md-caption>Version: {{ automation.version }}</md-caption>
+                <md-caption>Last updated: {{ automation.updated_at }}</md-caption>
+            </div>
+        </div>
+        <div class="card-actions">
+            <md-switch
+                selected="{{ automation.enabled.to_string() }}"
+                hx-post="/automations/{{ automation.id }}/toggle"
+                hx-target="#automation-{{ automation.id }}"
+                hx-swap="outerHTML">
+            </md-switch>
+            <div>
+                <md-icon-button href="/automations/{{ automation.id }}/edit">
+                    <md-icon>edit</md-icon>
+                </md-icon-button>
+                <md-icon-button
+                    hx-delete="/automations/{{ automation.id }}"
+                    hx-confirm="Are you sure you want to delete this automation?"
+                    hx-target="#automation-{{ automation.id }}"
+                    hx-swap="outerHTML">
+                    <md-icon>delete</md-icon>
+                </md-icon-button>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if automations.is_empty() %}
+<div class="error">
+    No automations found.
+</div>
+{% endif %}
+{% endblock %}

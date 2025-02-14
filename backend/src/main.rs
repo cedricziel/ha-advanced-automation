@@ -5,6 +5,9 @@ mod codegen;
 mod ha_client;
 mod rhai;
 mod tests;
+mod web;
+
+use std::collections::HashMap;
 
 use automation::{Automation, AutomationCreate};
 use axum::{
@@ -34,6 +37,7 @@ struct AppState {
     ha_client: Arc<HaClient>,
     automation_store: Arc<automation::AutomationStore>,
     block_store: Arc<blocks::BlockStore>,
+    automations: Arc<Vec<Automation>>,
 }
 
 #[tokio::main]
@@ -67,10 +71,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let automation_store =
         Arc::new(automation::AutomationStore::new(block_store.as_ref().clone()).await?);
 
+    // Get initial automations
+    let automations = Arc::new(automation_store.list().await);
+
     let state = Arc::new(AppState {
         ha_client: ha_client.clone(),
         automation_store,
         block_store,
+        automations,
     });
 
     // Create CORS layer
@@ -81,6 +89,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Build router
     let app = Router::new()
+        .merge(web::routes::router())
         .route("/health", get(health_check))
         .route("/ws", get(ws_handler))
         .route("/api/states", get(get_states))
