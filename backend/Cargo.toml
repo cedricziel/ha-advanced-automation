@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-askama = "0.12"
+askama = { version = "0.12", features = ["with-axum"] }
 askama_axum = "0.4"
 rhai = { version = "1.16", features = ["sync", "serde"] }
 handlebars = "5.1"

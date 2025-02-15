@@ -7,8 +7,6 @@ mod rhai;
 mod tests;
 mod web;
 
-use std::collections::HashMap;
-
 use automation::{Automation, AutomationCreate};
 use axum::{
     extract::{

@@ -3,6 +3,13 @@ pub mod routes;
 use askama::Template;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
+
+#[derive(Template)]
+#[template(path = "automations/create.html")]
+pub struct AutomationCreateTemplate {
+    pub toolbox: Option<Value>,
+}
 
 #[derive(Template)]
 #[template(path = "automations/list.html")]

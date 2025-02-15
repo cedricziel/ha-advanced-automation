@@ -12,5 +12,8 @@
   "yaml.schemas": {
     "backend/schemas/block.json": "backend/blocks/**/*.yaml"
   },
-  "editor.formatOnSave": true
+  "editor.formatOnSave": true,
+  "files.associations": {
+    "*.html": "jinja-html"
+  }
 }

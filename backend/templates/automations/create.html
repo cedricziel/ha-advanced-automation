@@ -1,0 +1,354 @@
+{% extends "base.html" %}
+
+{% block title %}Create Automation{% endblock %}
+
+{% block content %}
+<div class="editor-container">
+    <div class="editor-header">
+        <md-headline4>Create New Automation</md-headline4>
+    </div>
+
+    <div class="split">
+        <div class="blockly-container gutter-right">
+            <div id="blocklyDiv"></div>
+        </div>
+
+        <div class="sidebar">
+            <div class="tabs">
+                <md-tabs>
+                    <md-primary-tab id="details-tab" aria-controls="details-panel">Details</md-primary-tab>
+                    <md-primary-tab id="json-tab" aria-controls="json-panel">Raw JSON</md-primary-tab>
+                    <md-primary-tab id="state-tab" aria-controls="state-panel">State Changes</md-primary-tab>
+                </md-tabs>
+            </div>
+
+            <div class="tab-content">
+                <div id="details-panel" role="tabpanel" aria-labelledby="details-tab">
+                    <form id="automation-form" hx-post="/automations" hx-swap="outerHTML">
+                        <md-filled-text-field label="Name" type="text" name="name" required id="automation-name">
+                        </md-filled-text-field>
+
+                        <md-filled-text-field label="Description" type="text" name="description"
+                            id="automation-description" rows="3">
+                        </md-filled-text-field>
+
+                        <input type="hidden" name="workspace" id="workspace-state" value="">
+
+                        <div id="form-feedback" class="error" style="display: none;"></div>
+
+                        <div class="form-actions">
+                            <md-text-button href="/automations" type="button">
+                                Cancel
+                            </md-text-button>
+                            <md-filled-button type="submit" id="save-automation">
+                                <span id="save-text">Create Automation</span>
+                                <span id="loading-text" style="display: none;">
+                                    Creating...
+                                </span>
+                            </md-filled-button>
+                        </div>
+                    </form>
+                </div>
+
+                <div id="json-panel" role="tabpanel" aria-labelledby="json-tab" hidden>
+                    <pre id="workspace-json"></pre>
+                </div>
+
+                <div id="state-panel" role="tabpanel" aria-labelledby="state-tab" hidden>
+                    <div id="state-changes">
+                        <div class="state-changes-placeholder">
+                            Build your automation using blocks to see state changes here
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .editor-container {
+        height: calc(100vh - 64px);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .editor-header {
+        padding: 16px;
+    }
+
+    .blockly-container {
+        flex: 7;
+        position: relative;
+    }
+
+    #blocklyDiv {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+    }
+
+    .sidebar {
+        flex: 3;
+        display: flex;
+        flex-direction: column;
+        min-width: 300px;
+        border-left: 1px solid #e0e0e0;
+        background: white;
+    }
+
+    .tab-content {
+        flex: 1;
+        overflow: auto;
+        padding: 16px;
+    }
+
+    #automation-form {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 16px;
+    }
+
+    #workspace-json {
+        background: #f5f5f5;
+        padding: 16px;
+        border-radius: 4px;
+        overflow: auto;
+        font-family: monospace;
+        margin: 0;
+    }
+
+    #state-changes {
+        border: 1px solid #e0e0e0;
+        border-radius: 4px;
+        height: 100%;
+        overflow: auto;
+        padding: 16px;
+    }
+
+    .state-changes-placeholder {
+        color: #666;
+        text-align: center;
+        padding: 32px;
+        font-style: italic;
+    }
+
+    #form-feedback {
+        padding: 8px 16px;
+        border-radius: 4px;
+        background-color: #fee;
+        color: #d32f2f;
+        margin-bottom: 16px;
+    }
+
+    .loading {
+        opacity: 0.7;
+        pointer-events: none;
+    }
+</style>
+
+<script src="https://unpkg.com/split.js"></script>
+<script src="https://unpkg.com/blockly/blockly_compressed.js"></script>
+<script src="https://unpkg.com/blockly/blocks_compressed.js"></script>
+<script src="https://unpkg.com/blockly/msg/en.js"></script>
+
+<script id="toolbox-data" type="application/json">
+{% if toolbox.is_some() %}{{ toolbox.as_ref().unwrap()|safe }}{% else %}{
+    "kind": "categoryToolbox",
+    "contents": []
+}{% endif %}
+</script>
+
+<script>
+    // Update state changes panel
+    function updateStateChanges() {
+        const workspace = Blockly.getMainWorkspace();
+        if (!workspace) return;
+
+        const workspaceState = Blockly.serialization.workspaces.save(workspace);
+        const statePanel = document.getElementById('state-changes');
+
+        // Send workspace state to backend for analysis
+        fetch('/automations/analyze', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(workspaceState)
+        })
+            .then(response => response.text())
+            .then(html => {
+                statePanel.innerHTML = html;
+            })
+            .catch(error => {
+                statePanel.innerHTML = '<div class="error">Failed to analyze automation</div>';
+                console.error('Error:', error);
+            });
+    }
+
+    // Form validation
+    function validateForm() {
+        const nameField = document.getElementById('automation-name');
+        const workspace = Blockly.getMainWorkspace();
+        const blocks = workspace.getAllBlocks(false);
+
+        let isValid = true;
+        let errorMessage = '';
+
+        // Check name
+        if (!nameField.value.trim()) {
+            nameField.setCustomValidity('Name is required');
+            isValid = false;
+            errorMessage = 'Name is required';
+        } else {
+            nameField.setCustomValidity('');
+        }
+
+        // Check for at least one trigger block
+        const hasTrigger = blocks.some(block =>
+            block.type.endsWith('_trigger') && !block.disabled
+        );
+
+        if (!hasTrigger) {
+            isValid = false;
+            errorMessage = 'At least one trigger is required';
+        }
+
+        // Update form feedback
+        const feedback = document.getElementById('form-feedback');
+        if (!isValid && feedback) {
+            feedback.textContent = errorMessage;
+            feedback.style.display = 'block';
+        } else if (feedback) {
+            feedback.style.display = 'none';
+        }
+
+        return isValid;
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        // Initialize Split.js for resizable panels
+        Split(['.blockly-container', '.sidebar'], {
+            sizes: [70, 30],
+            minSize: [300, 300],
+            gutterSize: 8,
+        });
+
+        // Initialize toolbox with fallback
+        let toolboxData;
+        try {
+            toolboxData = JSON.parse(document.getElementById('toolbox-data').textContent);
+        } catch (e) {
+            console.error('Failed to parse toolbox data:', e);
+            toolboxData = {
+                kind: "categoryToolbox",
+                contents: []
+            };
+        }
+
+        // Initialize Blockly workspace with error handling
+        const workspace = Blockly.inject('blocklyDiv', {
+            toolbox: toolboxData,
+            grid: {
+                spacing: 20,
+                length: 3,
+                colour: '#ccc',
+                snap: true,
+            },
+            move: {
+                scrollbars: true,
+                drag: true,
+                wheel: true,
+            },
+            zoom: {
+                controls: true,
+                wheel: true,
+                startScale: 1.0,
+                maxScale: 3,
+                minScale: 0.3,
+                scaleSpeed: 1.2,
+            },
+            trashcan: true,
+        });
+
+        // Tab switching handler
+        const tabs = document.querySelector('md-tabs');
+        const panels = document.querySelectorAll('[role="tabpanel"]');
+
+        tabs.addEventListener('change', (e) => {
+            // Update active panel
+            const selectedIndex = e.target.activeTabIndex;
+            panels.forEach((panel, index) => {
+                if (index === selectedIndex) {
+                    panel.hidden = false;
+                    if (index === 1) { // JSON tab
+                        updateJsonView();
+                    }
+                } else {
+                    panel.hidden = true;
+                }
+            });
+        });
+
+        // Form submission handling
+        const form = document.getElementById('automation-form');
+
+        form.addEventListener('htmx:beforeRequest', function (event) {
+            if (!validateForm()) {
+                event.preventDefault();
+                return;
+            }
+
+            // Update workspace state
+            const workspaceState = Blockly.serialization.workspaces.save(workspace);
+            document.getElementById('workspace-state').value = JSON.stringify(workspaceState);
+
+            // Show loading state
+            document.getElementById('save-automation').disabled = true;
+            document.getElementById('save-text').style.display = 'none';
+            document.getElementById('loading-text').style.display = 'inline';
+        });
+
+        form.addEventListener('htmx:afterRequest', function () {
+            // Reset loading state
+            document.getElementById('save-automation').disabled = false;
+            document.getElementById('save-text').style.display = 'inline';
+            document.getElementById('loading-text').style.display = 'none';
+        });
+
+        // JSON view updates
+        function updateJsonView() {
+            const workspaceState = Blockly.serialization.workspaces.save(workspace);
+            document.getElementById('workspace-json').textContent = JSON.stringify(workspaceState, null, 2);
+        }
+
+        // Workspace change listener
+        workspace.addChangeListener(() => {
+            // Update JSON view if panel is visible
+            if (document.getElementById('json-panel').hidden === false) {
+                updateJsonView();
+            }
+
+            // Update state changes if panel is visible
+            if (document.getElementById('state-panel').hidden === false) {
+                updateStateChanges();
+            }
+
+            // Validate form
+            validateForm();
+        });
+
+        // Initial validation
+        validateForm();
+    });
+</script>
+{% endblock %}

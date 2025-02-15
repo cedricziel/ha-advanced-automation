@@ -1,9 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Home Automation{% endblock %}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" />
+    <script type="importmap">
+        {
+        "imports": {
+            "@material/web/": "https://esm.run/@material/web/"
+        }
+        }
+    </script>
     <script>
         // Helper function to convert string to boolean for md-switch
         window.addEventListener('load', () => {
@@ -13,9 +23,12 @@
         });
     </script>
 
-    <!-- Material Web Components -->
-    <script type="module" src="https://cdn.jsdelivr.net/npm/@material/web/all.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@material/web/all.css">
+    <script type="module">
+        import '@material/web/all.js';
+        import { styles as typescaleStyles } from '@material/web/typography/md-typescale-styles.js';
+
+        document.adoptedStyleSheets.push(typescaleStyles.styleSheet);
+    </script>
 
     <!-- HTMX -->
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
@@ -50,7 +63,7 @@
             background: white;
             border-radius: 8px;
             overflow: hidden;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
         .card-content {
@@ -86,11 +99,71 @@
             border-radius: 4px;
             margin: 16px 0;
         }
+
+        /* Split view and Blockly styles */
+        .split {
+            display: flex;
+            flex-direction: row;
+            height: 100%;
+        }
+
+        .gutter {
+            background-color: #eee;
+            background-repeat: no-repeat;
+            background-position: 50%;
+            cursor: col-resize;
+        }
+
+        .gutter:hover {
+            background-color: #ddd;
+        }
+
+        /* Blockly category styles */
+        .blocklyTreeRow {
+            height: 32px;
+            line-height: 32px;
+            padding-left: 6px;
+        }
+
+        .trigger_category .blocklyTreeRow {
+            border-left: 4px solid #ff8f00;
+        }
+
+        .condition_category .blocklyTreeRow {
+            border-left: 4px solid #2196f3;
+        }
+
+        .action_category .blocklyTreeRow {
+            border-left: 4px solid #4caf50;
+        }
+
+        .logic_category .blocklyTreeRow {
+            border-left: 4px solid #9c27b0;
+        }
+
+        /* Blockly block styles */
+        .blocklyTreeIcon {
+            width: 24px;
+            height: 24px;
+            margin: 4px;
+        }
+
+        .blocklyMainBackground {
+            stroke: none;
+            fill: #fff;
+        }
+
+        .blocklyToolboxDiv {
+            background-color: #f5f5f5;
+            border-right: 1px solid #e0e0e0;
+        }
     </style>
 </head>
+
 <body>
     <div class="container">
         {% block content %}{% endblock %}
     </div>
 </body>
+
 </html>
