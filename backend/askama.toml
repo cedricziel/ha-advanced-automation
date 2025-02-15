@@ -12,3 +12,11 @@ escaper = "askama::Html"
 [[general.filters]]
 name = "json_encode"
 path = "crate::web::filters::json_encode"
+
+[[general.filters]]
+name = "default"
+path = "crate::web::filters::default"
+
+[[general.filters]]
+name = "default_ref"
+path = "crate::web::filters::default_ref"

@@ -430,12 +430,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_controls_if_block() -> Result<()> {
-        let (store, temp_dir) = setup_test_environment().await?;
+        let (_store, temp_dir) = setup_test_environment().await?;
 
         // Create a BlockStore with both controls_if and logic_operation blocks
         let blocks_dir = temp_dir.path().join("blocks_if");
         tokio::fs::create_dir_all(&blocks_dir).await?;
-        let mut block_store = BlockStore::with_blocks_dir(blocks_dir).await?;
+        let block_store = BlockStore::with_blocks_dir(blocks_dir).await?;
 
         // Add logic_operation block
         block_store

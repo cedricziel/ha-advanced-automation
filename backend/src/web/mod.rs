@@ -3,6 +3,8 @@ pub mod routes;
 
 use askama::Template;
 use chrono::{DateTime, Utc};
+use filters::default;
+use filters::default_ref;
 use filters::json_encode;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

@@ -30,8 +30,7 @@
                         </md-filled-text-field>
 
                         <md-filled-text-field label="Description" type="text" name="description"
-                            id="automation-description" rows="3"
-                            value="{{ automation.description.as_ref().unwrap_or_default() }}">
+                            id="automation-description" rows="3" value="{{ automation.description|default_ref }}">
                         </md-filled-text-field>
 
                         <input type="hidden" name="workspace" id="workspace-state"

@@ -250,7 +250,7 @@ async fn toggle_automation(
 }
 
 async fn analyze_automation(
-    State(state): State<Arc<AppState>>,
+    State(_state): State<Arc<AppState>>,
     Json(workspace): Json<Value>,
 ) -> impl IntoResponse {
     // Analyze the workspace to find state changes

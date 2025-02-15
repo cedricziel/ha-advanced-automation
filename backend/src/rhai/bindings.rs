@@ -62,7 +62,7 @@ pub fn register_ha_api(engine: &mut Engine) {
 
     module.set_native_fn(
         "on_state_change",
-        |mut ctx: NativeCallContext, entity_id: &str, callback: FnPtr| {
+        |mut ctx: NativeCallContext, _entity_id: &str, callback: FnPtr| {
             HaApi::on_state_change(&mut ctx, callback)
         },
     );
