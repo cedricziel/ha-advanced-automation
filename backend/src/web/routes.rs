@@ -3,14 +3,17 @@ use axum::{
     extract::{Json, Path, Query, State},
     http::{header, StatusCode},
     response::{Html, IntoResponse},
-    routing::{delete, get, post},
+    routing::{delete, get, post, put},
     Form, Router,
 };
+use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use std::sync::Arc;
 
-use super::{AutomationCreateTemplate, AutomationViewModel, AutomationsListTemplate};
-use crate::AppState;
+use super::{
+    AutomationCreateTemplate, AutomationEditTemplate, AutomationViewModel, AutomationsListTemplate,
+};
+use crate::{automation::AutomationUpdate, AppState};
 
 #[derive(Deserialize)]
 pub struct SearchQuery {
@@ -21,14 +24,17 @@ use serde_json::Value;
 
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
-        .route("/", get(|| async {
-            (
-                StatusCode::SEE_OTHER,
-                [(header::LOCATION, "/automations")],
-                "",
-            )
-                .into_response()
-        }))
+        .route(
+            "/",
+            get(|| async {
+                (
+                    StatusCode::SEE_OTHER,
+                    [(header::LOCATION, "/automations")],
+                    "",
+                )
+                    .into_response()
+            }),
+        )
         .route("/automations", get(list_automations))
         .route("/automations/search", get(search_automations))
         .route("/automations/{id}/toggle", post(toggle_automation))
@@ -36,10 +42,20 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/automations/new", get(new_automation))
         .route("/automations", post(create_automation))
         .route("/automations/analyze", post(analyze_automation))
+        .route("/automations/{id}/edit", get(edit_automation))
+        .route("/automations/{id}", put(update_automation))
+        .route("/automations/{id}/test", post(test_automation))
 }
 
 #[derive(Deserialize)]
 pub struct CreateAutomationRequest {
+    name: String,
+    description: Option<String>,
+    workspace: String,
+}
+
+#[derive(Deserialize)]
+pub struct UpdateAutomationRequest {
     name: String,
     description: Option<String>,
     workspace: String,
@@ -233,7 +249,6 @@ async fn toggle_automation(
     }
 }
 
-
 async fn analyze_automation(
     State(state): State<Arc<AppState>>,
     Json(workspace): Json<Value>,
@@ -247,8 +262,14 @@ async fn analyze_automation(
                 // Look for state-changing blocks
                 if block_type == "ha_set_state_action" {
                     if let Some(fields) = block.get("fields") {
-                        let entity = fields.get("entity").and_then(|e| e.as_str()).unwrap_or("unknown");
-                        let state = fields.get("state").and_then(|s| s.as_str()).unwrap_or("unknown");
+                        let entity = fields
+                            .get("entity")
+                            .and_then(|e| e.as_str())
+                            .unwrap_or("unknown");
+                        let state = fields
+                            .get("state")
+                            .and_then(|s| s.as_str())
+                            .unwrap_or("unknown");
                         state_changes.push((entity.to_string(), state.to_string()));
                     }
                 }
@@ -294,6 +315,160 @@ async fn analyze_automation(
     };
 
     Html(html)
+}
+
+async fn edit_automation(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    match state.automation_store.get(&id).await {
+        Some(automation) => {
+            let blocks = state.block_store.list().await;
+            let toolbox = serde_json::json!({
+                "kind": "categoryToolbox",
+                "contents": [
+                    {
+                        "kind": "category",
+                        "name": "Triggers",
+                        "categorystyle": "trigger_category",
+                        "contents": blocks.iter()
+                            .filter(|b| b.r#type.starts_with("ha_") && b.r#type.ends_with("_trigger"))
+                            .collect::<Vec<_>>()
+                    },
+                    {
+                        "kind": "category",
+                        "name": "Conditions",
+                        "categorystyle": "condition_category",
+                        "contents": blocks.iter()
+                            .filter(|b| b.r#type.starts_with("ha_") && b.r#type.ends_with("_condition"))
+                            .collect::<Vec<_>>()
+                    },
+                    {
+                        "kind": "category",
+                        "name": "Actions",
+                        "categorystyle": "action_category",
+                        "contents": blocks.iter()
+                            .filter(|b| b.r#type.starts_with("ha_") && b.r#type.ends_with("_action"))
+                            .collect::<Vec<_>>()
+                    },
+                    {
+                        "kind": "category",
+                        "name": "Logic",
+                        "categorystyle": "logic_category",
+                        "contents": blocks.iter()
+                            .filter(|b| b.r#type.starts_with("logic_"))
+                            .collect::<Vec<_>>()
+                    }
+                ]
+            });
+
+            let template = AutomationEditTemplate {
+                automation: AutomationViewModel::from_automation(automation),
+                toolbox: Some(toolbox),
+            };
+
+            HtmlTemplate(template)
+        }
+        None => HtmlTemplate(AutomationEditTemplate {
+            automation: AutomationViewModel {
+                id: "".to_string(),
+                name: "".to_string(),
+                description: None,
+                enabled: false,
+                version: 0,
+                updated_at: Utc::now(),
+                workspace: serde_json::json!({}),
+            },
+            toolbox: None,
+        }),
+    }
+}
+
+async fn update_automation(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+    Form(payload): Form<UpdateAutomationRequest>,
+) -> impl IntoResponse {
+    // Parse workspace JSON
+    let workspace: Value = match serde_json::from_str(&payload.workspace) {
+        Ok(ws) => ws,
+        Err(_) => {
+            return Html("<div class='error'>Invalid workspace data</div>".to_string())
+                .into_response()
+        }
+    };
+
+    // Get current automation to preserve some fields
+    let current = match state.automation_store.get(&id).await {
+        Some(automation) => automation,
+        None => {
+            return Html("<div class='error'>Automation not found</div>".to_string())
+                .into_response()
+        }
+    };
+
+    // Create automation update
+    let automation_update = AutomationUpdate {
+        name: payload.name,
+        description: payload.description,
+        workspace,
+        enabled: current.enabled,
+        version: current.version,
+        triggers: current.triggers,
+        conditions: current.conditions,
+    };
+
+    // Update automation
+    match state.automation_store.update(&id, automation_update).await {
+        Ok(Some(_)) => (
+            StatusCode::SEE_OTHER,
+            [(header::LOCATION, "/automations")],
+            "",
+        )
+            .into_response(),
+        Ok(None) => {
+            Html("<div class='error'>Automation not found</div>".to_string()).into_response()
+        }
+        Err(_) => {
+            Html("<div class='error'>Failed to update automation</div>".to_string()).into_response()
+        }
+    }
+}
+
+async fn test_automation(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    match state.automation_store.get(&id).await {
+        Some(automation) => {
+            // Generate and run the script
+            match state
+                .automation_store
+                .compile_automation_script(&automation)
+                .await
+            {
+                Ok(_) => Html(format!(
+                    r#"<div class="test-result success">
+                        <md-icon>check_circle</md-icon>
+                        <span>Automation test successful</span>
+                    </div>"#
+                )),
+                Err(e) => Html(format!(
+                    r#"<div class="test-result error">
+                        <md-icon>error</md-icon>
+                        <span>Test failed: {}</span>
+                    </div>"#,
+                    e
+                )),
+            }
+        }
+        None => Html(format!(
+            r#"<div class="test-result error">
+                <md-icon>error</md-icon>
+                <span>Automation not found</span>
+            </div>"#
+        )),
+    }
 }
 
 async fn delete_automation(

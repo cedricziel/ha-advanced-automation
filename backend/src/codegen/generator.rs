@@ -95,7 +95,8 @@ impl CodeGenerator {
         &'a self,
         block: &'a Value,
         context: &'a HashMap<String, Value>,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<String, String>> + Send + 'a>> {
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<String, String>> + Send + 'a>>
+    {
         Box::pin(async move {
             let block_type = block
                 .get("type")
@@ -135,11 +136,14 @@ impl CodeGenerator {
                     match value {
                         Value::Object(input_obj) => {
                             if let Some(input_block) = input_obj.get("block") {
-                                let input_code = self.generate_block_code(input_block, context).await?;
+                                let input_code =
+                                    self.generate_block_code(input_block, context).await?;
                                 field_values.insert(key.clone(), Value::String(input_code));
                             }
                         }
-                        _ => return Err(format!("Invalid input value for key {}: {:?}", key, value)),
+                        _ => {
+                            return Err(format!("Invalid input value for key {}: {:?}", key, value))
+                        }
                     }
                 }
             }
@@ -179,7 +183,8 @@ impl CodeGenerator {
             }
 
             // Render the template with the field values
-            let rendered = self.handlebars
+            let rendered = self
+                .handlebars
                 .render_template(&template, &field_values)
                 .map_err(|e| format!("Template rendering error: {}", e))?;
             Ok(rendered)

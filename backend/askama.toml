@@ -1,3 +1,14 @@
 [general]
-# The directory where templates are stored
+# Directory for template files
 dirs = ["templates"]
+
+# Extension for template files
+extension = "html"
+
+# Custom syntax for escaping
+escaper = "askama::Html"
+
+# Register filters
+[[general.filters]]
+name = "json_encode"
+path = "crate::web::filters::json_encode"

@@ -94,7 +94,6 @@ impl AutomationStore {
         block_store: crate::blocks::BlockStore,
         storage_path: PathBuf,
     ) -> std::io::Result<Self> {
-
         // Ensure the storage directory exists
         tracing::debug!("Creating storage directory: {:?}", storage_path);
         fs::create_dir_all(&storage_path).await?;
@@ -157,7 +156,7 @@ impl AutomationStore {
         Ok(())
     }
 
-    async fn compile_automation_script(&self, automation: &Automation) -> std::io::Result<()> {
+    pub async fn compile_automation_script(&self, automation: &Automation) -> std::io::Result<()> {
         // Generate Rhai code from the automation's workspace
         let context: HashMap<String, Value> = HashMap::new(); // TODO: Extract context from workspace
         let generated_code = self

@@ -27,7 +27,9 @@ impl ScriptEngine {
         // Register Home Assistant API
         register_ha_api(&mut engine);
 
-        Self { engine: Arc::new(engine) }
+        Self {
+            engine: Arc::new(engine),
+        }
     }
 
     pub fn compile(&self, script: &str) -> Result<AST, Box<EvalAltResult>> {
@@ -41,7 +43,8 @@ impl ScriptEngine {
 
     pub fn run(&self, ast: &AST) -> Result<Dynamic, Box<EvalAltResult>> {
         let mut scope = Scope::new();
-        self.engine.as_ref()
+        self.engine
+            .as_ref()
             .run_ast_with_scope(&mut scope, ast)
             .map(Dynamic::from)
             .map_err(|e| {

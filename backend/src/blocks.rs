@@ -1,12 +1,12 @@
+use chrono::{DateTime, Utc};
+use log::{error, info};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use chrono::{DateTime, Utc};
 use walkdir::WalkDir;
-use log::{info, error};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockArgument {
@@ -93,7 +93,11 @@ impl BlockStore {
                                 .unwrap()
                                 .to_string_lossy()
                                 .to_string();
-                            info!("Loaded built-in template: {} from {}", block_type, entry.path().display());
+                            info!(
+                                "Loaded built-in template: {} from {}",
+                                block_type,
+                                entry.path().display()
+                            );
                             builtin_templates.insert(block_type, content);
                         }
                         Err(e) => {
@@ -110,19 +114,29 @@ impl BlockStore {
             .into_iter()
             .filter_map(|e| e.ok())
         {
-            if entry.path().extension().map_or(false, |ext| ext == "yaml" || ext == "yml") {
+            if entry
+                .path()
+                .extension()
+                .map_or(false, |ext| ext == "yaml" || ext == "yml")
+            {
                 match fs::read_to_string(entry.path()) {
-                    Ok(content) => {
-                        match serde_yaml::from_str::<BlockDefinition>(&content) {
-                            Ok(block) => {
-                                info!("Loaded block: {} from {}", block.r#type, entry.path().display());
-                                blocks.insert(block.r#type.clone(), block);
-                            }
-                            Err(e) => {
-                                error!("Failed to parse block from {}: {}", entry.path().display(), e);
-                            }
+                    Ok(content) => match serde_yaml::from_str::<BlockDefinition>(&content) {
+                        Ok(block) => {
+                            info!(
+                                "Loaded block: {} from {}",
+                                block.r#type,
+                                entry.path().display()
+                            );
+                            blocks.insert(block.r#type.clone(), block);
                         }
-                    }
+                        Err(e) => {
+                            error!(
+                                "Failed to parse block from {}: {}",
+                                entry.path().display(),
+                                e
+                            );
+                        }
+                    },
                     Err(e) => {
                         error!("Failed to read {}: {}", entry.path().display(), e);
                     }

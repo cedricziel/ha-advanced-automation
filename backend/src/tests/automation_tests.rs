@@ -506,7 +506,8 @@ mod tests {
             .await?;
 
         // Create new store with the if block
-        let store = AutomationStore::with_storage_path(block_store, temp_dir.path().to_path_buf()).await?;
+        let store =
+            AutomationStore::with_storage_path(block_store, temp_dir.path().to_path_buf()).await?;
 
         // Test basic if without else
         let basic_if = AutomationCreate {

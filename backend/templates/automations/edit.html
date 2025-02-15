@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 
-{% block title %}Create Automation{% endblock %}
+{% block title %}Edit Automation{% endblock %}
 
 {% block content %}
 <div class="editor-container">
     <div class="editor-header">
-        <md-headline4>Create New Automation</md-headline4>
+        <md-headline4>Edit Automation</md-headline4>
     </div>
 
     <div class="split">
@@ -24,28 +24,39 @@
 
             <div class="tab-content">
                 <div id="details-panel" role="tabpanel" aria-labelledby="details-tab">
-                    <form id="automation-form" hx-post="/automations" hx-swap="outerHTML">
-                        <md-filled-text-field label="Name" type="text" name="name" required id="automation-name">
+                    <form id="automation-form" hx-put="/automations/{{ automation.id }}" hx-swap="outerHTML">
+                        <md-filled-text-field label="Name" type="text" name="name" required id="automation-name"
+                            value="{{ automation.name }}">
                         </md-filled-text-field>
 
                         <md-filled-text-field label="Description" type="text" name="description"
-                            id="automation-description" rows="3">
+                            id="automation-description" rows="3"
+                            value="{{ automation.description.as_ref().unwrap_or_default() }}">
                         </md-filled-text-field>
 
-                        <input type="hidden" name="workspace" id="workspace-state" value="">
+                        <input type="hidden" name="workspace" id="workspace-state"
+                            value="{{ automation.workspace|json_encode()|safe }}">
 
                         <div id="form-feedback" class="error" style="display: none;"></div>
 
                         <div class="form-actions">
-                            <md-text-button href="/automations" type="button">
-                                Cancel
-                            </md-text-button>
-                            <md-filled-button type="submit" id="save-automation">
-                                <span id="save-text">Create Automation</span>
-                                <span id="loading-text" style="display: none;">
-                                    Creating...
-                                </span>
-                            </md-filled-button>
+                            <div style="display: flex; gap: 8px;">
+                                <md-text-button href="/automations" type="button">
+                                    Cancel
+                                </md-text-button>
+                                <md-filled-tonal-button id="test-automation"
+                                    hx-post="/automations/{{ automation.id }}/test" hx-target="#test-result"
+                                    hx-indicator="#test-loading">
+                                    <md-icon slot="icon">play_arrow</md-icon>
+                                    Test
+                                </md-filled-tonal-button>
+                                <md-filled-button type="submit" id="save-automation">
+                                    <span id="save-text">Save Changes</span>
+                                    <span id="loading-text" style="display: none;">
+                                        Saving...
+                                    </span>
+                                </md-filled-button>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -74,64 +85,14 @@
         flex-direction: column;
     }
 
-    @media (max-width: 768px) {
-        .split {
-            flex-direction: column !important;
-        }
-
-        .blockly-container {
-            height: 60vh !important;
-            position: relative;
-            flex: none !important;
-        }
-
-        .sidebar {
-            min-width: 100% !important;
-            border-left: none !important;
-            border-top: 1px solid #e0e0e0;
-        }
-
-        .form-actions {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: white;
-            padding: 16px;
-            box-shadow: 0 -2px 4px rgba(0,0,0,0.1);
-            z-index: 1000;
-            margin: 0 !important;
-        }
-
-        #automation-form {
-            padding-bottom: 80px;
-        }
-
-        .toast {
-            bottom: 80px;
-        }
-
-        /* Adjust Blockly controls for touch */
-        .blocklyFlyout {
-            width: 100% !important;
-        }
-
-        .blocklyToolboxDiv {
-            width: 100% !important;
-        }
-
-        .blocklyTreeRow {
-            padding: 12px !important;
-            height: auto !important;
-        }
-
-        .blocklyTreeLabel {
-            font-size: 16px !important;
-        }
-    }
-
     .editor-header {
         padding: 16px;
+    }
+
+    .split {
+        display: flex;
+        flex-direction: row;
+        height: 100%;
     }
 
     .blockly-container {
@@ -211,6 +172,103 @@
         opacity: 0.7;
         pointer-events: none;
     }
+
+    .toast {
+        position: fixed;
+        bottom: 16px;
+        right: 16px;
+        background: #323232;
+        color: white;
+        padding: 12px 24px;
+        border-radius: 4px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        opacity: 0;
+        transition: opacity 0.3s ease-in-out;
+    }
+
+    .toast.show {
+        opacity: 1;
+    }
+
+    .test-result {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px;
+        border-radius: 4px;
+        margin-top: 16px;
+    }
+
+    .test-result.success {
+        background-color: #e8f5e9;
+        color: #2e7d32;
+    }
+
+    .test-result.error {
+        background-color: #fbe9e7;
+        color: #d32f2f;
+    }
+
+    /* Mobile styles */
+    @media (max-width: 768px) {
+        .split {
+            flex-direction: column !important;
+        }
+
+        .blockly-container {
+            height: 60vh !important;
+            position: relative;
+            flex: none !important;
+        }
+
+        .sidebar {
+            min-width: 100% !important;
+            border-left: none !important;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .form-actions {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            padding: 16px;
+            box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            margin: 0 !important;
+        }
+
+        #automation-form {
+            padding-bottom: 80px;
+        }
+
+        .toast {
+            bottom: 80px;
+        }
+
+        /* Adjust Blockly controls for touch */
+        .blocklyFlyout {
+            width: 100% !important;
+        }
+
+        .blocklyToolboxDiv {
+            width: 100% !important;
+        }
+
+        .blocklyTreeRow {
+            padding: 12px !important;
+            height: auto !important;
+        }
+
+        .blocklyTreeLabel {
+            font-size: 16px !important;
+        }
+    }
 </style>
 
 <script src="https://unpkg.com/split.js"></script>
@@ -226,6 +284,27 @@
 </script>
 
 <script>
+    // Toast notification
+    function showToast(message, type = 'success') {
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.innerHTML = `
+            <md-icon>${type === 'success' ? 'check_circle' : 'error'}</md-icon>
+            <span>${message}</span>
+        `;
+        document.body.appendChild(toast);
+
+        // Trigger reflow
+        toast.offsetHeight;
+
+        toast.classList.add('show');
+
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
     // Update state changes panel
     function updateStateChanges() {
         const workspace = Blockly.getMainWorkspace();
@@ -234,7 +313,6 @@
         const workspaceState = Blockly.serialization.workspaces.save(workspace);
         const statePanel = document.getElementById('state-changes');
 
-        // Send workspace state to backend for analysis
         fetch('/automations/analyze', {
             method: 'POST',
             headers: {
@@ -294,11 +372,14 @@
 
     document.addEventListener('DOMContentLoaded', function () {
         // Initialize Split.js for resizable panels
-        Split(['.blockly-container', '.sidebar'], {
-            sizes: [70, 30],
-            minSize: [300, 300],
-            gutterSize: 8,
-        });
+        const isMobile = window.innerWidth <= 768;
+        if (!isMobile) {
+            Split(['.blockly-container', '.sidebar'], {
+                sizes: [70, 30],
+                minSize: [300, 300],
+                gutterSize: 8,
+            });
+        }
 
         // Initialize toolbox with fallback
         let toolboxData;
@@ -313,7 +394,6 @@
         }
 
         // Initialize Blockly workspace with error handling
-        const isMobile = window.innerWidth <= 768;
         const workspace = Blockly.inject('blocklyDiv', {
             toolbox: toolboxData,
             grid: {
@@ -342,12 +422,23 @@
             sounds: false, // Disable sounds on mobile
         });
 
+        // Load initial workspace state
+        const initialState = document.getElementById('workspace-state').value;
+        if (initialState) {
+            try {
+                const state = JSON.parse(initialState);
+                Blockly.serialization.workspaces.load(state, workspace);
+            } catch (e) {
+                console.error('Failed to load workspace state:', e);
+                showToast('Failed to load automation workspace', 'error');
+            }
+        }
+
         // Tab switching handler
         const tabs = document.querySelector('md-tabs');
         const panels = document.querySelectorAll('[role="tabpanel"]');
 
         tabs.addEventListener('change', (e) => {
-            // Update active panel
             const selectedIndex = e.target.activeTabIndex;
             panels.forEach((panel, index) => {
                 if (index === selectedIndex) {
@@ -388,12 +479,12 @@
 
             // Show success message and redirect
             if (event.detail.successful) {
-                showToast('Automation created successfully');
+                showToast('Automation updated successfully');
                 setTimeout(() => {
                     window.location.href = '/automations';
                 }, 1000);
             } else {
-                showToast('Failed to create automation', 'error');
+                showToast('Failed to update automation', 'error');
             }
         });
 
